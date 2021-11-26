@@ -157,11 +157,7 @@ sub prepare {
     my ($dbh, $statement, $attr) = @_;
 
     my ($ret, $response) = _client($dbh, 'prepare', $statement);
-
-    use Data::Dumper;
-    print Dumper $response;
     return unless $ret;
-
 
     my $stmt = $response->get_statement;
     my $statement_id = $stmt->get_id;
@@ -200,32 +196,50 @@ sub rollback {
 sub get_info {
 }
 
+# returned columns:
+# TABLE_CAT, TABLE_SCHEM, TABLE_NAME, TABLE_TYPE, REMARKS, TYPE_NAME, SELF_REFERENCING_COL_NAME,
+# REF_GENERATION, INDEX_STATE, IMMUTABLE_ROWS, SALT_BUCKETS, MULTI_TENANT, VIEW_STATEMENT, VIEW_TYPE,
+# INDEX_TYPE, TRANSACTIONAL, IS_NAMESPACE_MAPPED, GUIDE_POSTS_WIDTH, TRANSACTION_PROVIDER
 sub table_info {
     my $dbh = shift;
     my ($catalog, $schema, $table, $type) = @_;
 
     my ($ret, $response) = _client($dbh, 'tables', $catalog, $schema, $table, $type);
-    use Data::Dumper;
-    print Dumper $response;
     return unless $ret;
 
-    # returned columns:
-    # TABLE_CAT, TABLE_SCHEM, TABLE_NAME, TABLE_TYPE, REMARKS, TYPE_NAME, SELF_REFERENCING_COL_NAME,
-    # REF_GENERATION, INDEX_STATE, IMMUTABLE_ROWS, SALT_BUCKETS, MULTI_TENANT, VIEW_STATEMENT, VIEW_TYPE
-    # INDEX_TYPE, TRANSACTIONAL, IS_NAMESPACE_MAPPED, GUIDE_POSTS_WIDTH, TRANSACTION_PROVIDER
+    return _sth_from_result_set($dbh, 'table_info', $response);
+}
 
-    my $statement_id = $response->get_statement_id;
-    my $signature = $response->get_signature;
+# returned columns:
+# TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, COLUMN_SIZE, BUFFER_LENGTH,
+# DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, REMARKS, COLUMN_DEF, SQL_DATA_TYPE, SQL_DATETIME_SUB,
+# CHAR_OCTET_LENGTH, ORDINAL_POSITION, IS_NULLABLE, SCOPE_CATALOG, SCOPE_SCHEMA, SCOPE_TABLE,
+# SOURCE_DATA_TYPE, IS_AUTOINCREMENT, ARRAY_SIZE, COLUMN_FAMILY, TYPE_ID, VIEW_CONSTANT, MULTI_TENANT,
+# KEY_SEQ
+sub column_info {
+    my $dbh = shift;
+    my ($catalog, $schema, $table, $column) = @_;
+
+    my ($ret, $response) = _client($dbh, 'columns', $catalog, $schema, $table, $column);
+    return unless $ret;
+
+    return _sth_from_result_set($dbh, 'column_info', $response);
+}
+
+sub _sth_from_result_set {
+    my ($dbh, $operation, $result_set) = @_;
+
+    my $statement_id = $result_set->get_statement_id;
+    my $signature = $result_set->get_signature;
     my $num_columns = $signature->columns_size;
 
-    my ($outer, $sth) = DBI::_new_sth($dbh, {'Statement' => 'table_info'});
+    my ($outer, $sth) = DBI::_new_sth($dbh, {'Statement' => $operation});
 
-    my $frame = $response->get_first_frame;
+    my $frame = $result_set->get_first_frame;
     $sth->{avatica_data_done} = $frame->get_done;
     $sth->{avatica_data} = $frame->get_rows_list;
     $sth->{avatica_rows} = 0;
 
-    $sth->STORE(NUM_OF_PARAMS => 0);
     $sth->STORE(NUM_OF_FIELDS => $num_columns);
     $sth->STORE(Active => 1);
 
@@ -234,7 +248,7 @@ sub table_info {
     $sth->STORE(avatica_statement_id => $statement_id);
     $sth->STORE(avatica_signature => $signature);
 
-    return $outer;
+    $outer;
 }
 
 sub disconnect {
@@ -308,9 +322,6 @@ sub execute {
     my $mapped_params = Avatica::Types->row_to_jdbc(\@bind_values, $signature->get_parameters_list);
 
     my ($ret, $response) = _client($sth, 'execute', $statement_id, $signature, $mapped_params, FETCH_SIZE);
-
-    use Data::Dumper;
-    print Dumper $response;
     return unless $ret;
 
     my $result = $response->get_results(0);
@@ -351,8 +362,6 @@ sub execute {
 sub fetch {
     my ($sth) = @_;
 
-    print 'fetchrow_arrayref', $/;
-
     my $signature = $sth->FETCH('avatica_signature');
 
     my $avatica_rows_list = $sth->{avatica_data};
@@ -361,9 +370,6 @@ sub fetch {
     if ((!$avatica_rows_list || !@$avatica_rows_list) && !$avatica_rows_done) {
         my $statement_id  = $sth->FETCH('avatica_statement_id');
         my ($ret, $response) = _client($sth, 'fetch', $statement_id, undef, FETCH_SIZE);
-
-        use Data::Dumper;
-        print Dumper $response;
         return unless $ret;
 
         my $frame = $response->get_frame;
@@ -391,6 +397,10 @@ sub rows {
     shift->{avatica_rows}
 }
 
+# It seems that here need to call _avatica_close_statement method,
+# but then such a scenario will not work
+# when there are many "execute" commands for one "prepare" command.
+# Therefore, we will not do this here.
 sub finish {
     my $sth = shift;
     $sth->STORE(Active => 0);
