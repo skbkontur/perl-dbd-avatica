@@ -1,4 +1,4 @@
-package DBD::Avatica::Types;
+package DBD::Phoenix::Types;
 
 use strict;
 use warnings;

@@ -1,4 +1,4 @@
-package DBD::Avatica;
+package DBD::Phoenix;
 
 use strict;
 use warnings;
@@ -12,14 +12,14 @@ $drh = undef;
 sub driver {
     return $drh if $drh;
     my ($class, $attr) = @_;
-    DBI->setup_driver('DBD::Avatica');
+    DBI->setup_driver('DBD::Phoenix');
     $drh = DBI::_new_drh("${class}::dr", {
-        'Name'          => 'Avatica',
+        'Name'          => 'Phoenix',
         'Version'       => $VERSION,
         'Err'           => \$err,
         'Errstr'        => \$errstr,
         'State'         => \$sqlstate,
-        'Attribution'   => "DBD::Avatica $VERSION by skbkontur team"
+        'Attribution'   => "DBD::Phoenix $VERSION by skbkontur team"
     });
     return $drh;
 }
@@ -32,10 +32,10 @@ sub CLONE {
 sub _client {
     my ($h, $method) = (shift, shift);
 
-    my $client = $h->FETCH('avatica_client');
+    my $client = $h->FETCH('phoenix_client');
     return unless $client;
 
-    my $connection_id = $h->FETCH('avatica_connection_id');
+    my $connection_id = $h->FETCH('phoenix_connection_id');
 
     local $SIG{PIPE} = "IGNORE";
 
@@ -53,7 +53,7 @@ sub _client {
     return ($ret, $response);
 }
 
-package DBD::Avatica::dr;
+package DBD::Phoenix::dr;
 
 our $imp_data_size = 0;
 
@@ -63,7 +63,7 @@ use warnings;
 use DBI;
 use Avatica::Client;
 
-*_client = \&DBD::Avatica::_client;
+*_client = \&DBD::Phoenix::_client;
 
 sub connect {
     my ($drh, $dsn, $user, $pass, $attr) = @_;
@@ -77,14 +77,14 @@ sub connect {
         return;
     }
 
-    $drh->STORE(avatica_url => $url);
+    $drh->STORE(phoenix_url => $url);
 
     my $client = Avatica::Client->new(url => $url);
     my $connection_id = _random_str();
 
-    $drh->STORE(avatica_client => $client);
+    $drh->STORE(phoenix_client => $client);
     my ($ret, $response) = _client($drh, 'open_connection', $connection_id);
-    $drh->STORE(avatica_client => undef);
+    $drh->STORE(phoenix_client => undef);
 
     return unless $ret;
 
@@ -93,23 +93,23 @@ sub connect {
     });
 
     $dbh->STORE(Active => 1);
-    $dbh->STORE(avatica_client => $client);
-    $dbh->STORE(avatica_connection_id => $connection_id);
-    my $connections = $drh->FETCH('avatica_connections') || [];
+    $dbh->STORE(phoenix_client => $client);
+    $dbh->STORE(phoenix_connection_id => $connection_id);
+    my $connections = $drh->FETCH('phoenix_connections') || [];
     push @$connections, $dbh;
-    $drh->STORE(avatica_connections => $connections);
+    $drh->STORE(phoenix_connections => $connections);
     $outer;
 }
 
 sub data_sources {
     my $drh = shift;
-    my $url = $drh->FETCH('avatica_url');
-    return "dbi:Avatica:url=$url";
+    my $url = $drh->FETCH('phoenix_url');
+    return "dbi:Phoenix:url=$url";
 }
 
 sub disconnect_all {
     my $drh = shift;
-    my $connections = $drh->FETCH('avatica_connections');
+    my $connections = $drh->FETCH('phoenix_connections');
     return unless $connections && @$connections;
 
     my ($dbh, $name);
@@ -127,7 +127,7 @@ sub _random_str {
 
 sub STORE {
     my ($drh, $attr, $value) = @_;
-    if ($attr =~ m/^avatica_/) {
+    if ($attr =~ m/^phoenix_/) {
         $drh->{$attr} = $value;
         return 1;
     }
@@ -136,13 +136,13 @@ sub STORE {
 
 sub FETCH {
     my ($drh, $attr) = @_;
-    if ($attr =~ m/^avatica_/) {
+    if ($attr =~ m/^phoenix_/) {
         return $drh->{$attr};
     }
     return $drh->SUPER::FETCH($attr);
 }
 
-package DBD::Avatica::db;
+package DBD::Phoenix::db;
 
 our $imp_data_size = 0;
 
@@ -151,7 +151,7 @@ use warnings;
 
 use DBI;
 
-*_client = \&DBD::Avatica::_client;
+*_client = \&DBD::Phoenix::_client;
 
 sub prepare {
     my ($dbh, $statement, $attr) = @_;
@@ -168,14 +168,14 @@ sub prepare {
     $sth->STORE(NUM_OF_PARAMS => $signature->parameters_size);
     $sth->STORE(NUM_OF_FIELDS => undef);
 
-    $sth->STORE(avatica_client => $dbh->FETCH('avatica_client'));
-    $sth->STORE(avatica_connection_id => $dbh->FETCH('avatica_connection_id'));
-    $sth->STORE(avatica_statement_id => $statement_id);
-    $sth->STORE(avatica_signature => $signature);
-    $sth->STORE(avatica_rows => -1);
+    $sth->STORE(phoenix_client => $dbh->FETCH('phoenix_client'));
+    $sth->STORE(phoenix_connection_id => $dbh->FETCH('phoenix_connection_id'));
+    $sth->STORE(phoenix_statement_id => $statement_id);
+    $sth->STORE(phoenix_signature => $signature);
+    $sth->STORE(phoenix_rows => -1);
 
     my $params = {};
-    $sth->STORE(avatica_bind_params => $params);
+    $sth->STORE(phoenix_bind_params => $params);
     $params->{$_} = undef for 1 .. $signature->parameters_size;
 
     $outer;
@@ -259,17 +259,17 @@ sub _sth_from_result_set {
     my ($outer, $sth) = DBI::_new_sth($dbh, {'Statement' => $operation});
 
     my $frame = $result_set->get_first_frame;
-    $sth->{avatica_data_done} = $frame->get_done;
-    $sth->{avatica_data} = $frame->get_rows_list;
-    $sth->{avatica_rows} = 0;
+    $sth->{phoenix_data_done} = $frame->get_done;
+    $sth->{phoenix_data} = $frame->get_rows_list;
+    $sth->{phoenix_rows} = 0;
 
     $sth->STORE(NUM_OF_FIELDS => $num_columns);
     $sth->STORE(Active => 1);
 
-    $sth->STORE(avatica_client => $dbh->FETCH('avatica_client'));
-    $sth->STORE(avatica_connection_id => $dbh->FETCH('avatica_connection_id'));
-    $sth->STORE(avatica_statement_id => $statement_id);
-    $sth->STORE(avatica_signature => $signature);
+    $sth->STORE(phoenix_client => $dbh->FETCH('phoenix_client'));
+    $sth->STORE(phoenix_connection_id => $dbh->FETCH('phoenix_connection_id'));
+    $sth->STORE(phoenix_statement_id => $statement_id);
+    $sth->STORE(phoenix_signature => $signature);
 
     $outer;
 }
@@ -280,7 +280,7 @@ sub disconnect {
     $dbh->STORE(Active => 0);
 
     my ($ret, $response) = _client($dbh, 'close_connection');
-    $dbh->STORE(avatica_client => undef);
+    $dbh->STORE(phoenix_client => undef);
 
     return $ret;
 }
@@ -290,7 +290,7 @@ sub STORE {
     if ($attr eq 'AutoCommit') {
         return 1;
     }
-    if ($attr =~ m/^avatica_/) {
+    if ($attr =~ m/^phoenix_/) {
         $dbh->{$attr} = $value;
         return 1;
     }
@@ -302,7 +302,7 @@ sub FETCH {
     if ($attr eq 'AutoCommit') {
         return 1;
     }
-    if ($attr =~ m/^avatica_/) {
+    if ($attr =~ m/^phoenix_/) {
         return $dbh->{$attr};
     }
     return $dbh->SUPER::FETCH($attr);
@@ -315,7 +315,7 @@ sub DESTROY {
     eval { $dbh->disconnect() };
 }
 
-package DBD::Avatica::st;
+package DBD::Phoenix::st;
 
 our $imp_data_size = 0;
 
@@ -324,11 +324,11 @@ use warnings;
 
 use DBI;
 
-use DBD::Avatica::Types;
+use DBD::Phoenix::Types;
 
 use constant FETCH_SIZE => 2000;
 
-*_client = \&DBD::Avatica::_client;
+*_client = \&DBD::Phoenix::_client;
 
 sub execute {
     my ($sth, @bind_values) = @_;
@@ -336,13 +336,13 @@ sub execute {
     my $num_params = $sth->FETCH('NUM_OF_PARAMS');
     return $sth->set_err(1, 'Wrong number of parameters') if @bind_values != $num_params;
 
-    my $bind_params = $sth->FETCH('avatica_bind_params');
+    my $bind_params = $sth->FETCH('phoenix_bind_params');
     $bind_params->{$_ + 1} = $bind_values[$_] for 0 .. scalar(keys %{$bind_params});
 
-    my $statement_id = $sth->FETCH('avatica_statement_id');
-    my $signature = $sth->FETCH('avatica_signature');
+    my $statement_id = $sth->FETCH('phoenix_statement_id');
+    my $signature = $sth->FETCH('phoenix_signature');
 
-    my $mapped_params = DBD::Avatica::Types->row_to_jdbc(\@bind_values, $signature->get_parameters_list);
+    my $mapped_params = DBD::Phoenix::Types->row_to_jdbc(\@bind_values, $signature->get_parameters_list);
 
     my ($ret, $response) = _client($sth, 'execute', $statement_id, $signature, $mapped_params, FETCH_SIZE);
     return unless $ret;
@@ -351,16 +351,16 @@ sub execute {
 
     if ($result->get_own_statement) {
         my $new_statement_id = $result->get_statement_id;
-        _avatica_close_statement($sth) if $statement_id && $statement_id != $new_statement_id;
-        $sth->STORE(avatica_statement_id => $new_statement_id);
+        _phoenix_close_statement($sth) if $statement_id && $statement_id != $new_statement_id;
+        $sth->STORE(phoenix_statement_id => $new_statement_id);
     }
 
     $signature = $result->get_signature;
-    $sth->STORE(avatica_signature => $signature);
+    $sth->STORE(phoenix_signature => $signature);
 
     my $frame = $result->get_first_frame;
-    $sth->{avatica_data_done} = $frame->get_done;
-    $sth->{avatica_data} = $frame->get_rows_list;
+    $sth->{phoenix_data_done} = $frame->get_done;
+    $sth->{phoenix_data} = $frame->get_rows_list;
 
     my $num_columns = $signature->columns_size;
     my $num_updates = $result->get_update_count;
@@ -370,14 +370,14 @@ sub execute {
         # DML
         $sth->STORE(Active => 0);
         $sth->STORE(NUM_OF_FIELDS => 0);
-        $sth->{avatica_rows} = $num_updates;
+        $sth->{phoenix_rows} = $num_updates;
         return if $num_updates == 0 ? '0E0' : $num_updates;
     }
 
     # SELECT
     $sth->STORE(Active => 1);
     $sth->STORE(NUM_OF_FIELDS => $num_columns);
-    $sth->{avatica_rows} = 0;
+    $sth->{phoenix_rows} = 0;
 
     return 1;
 }
@@ -385,29 +385,29 @@ sub execute {
 sub fetch {
     my ($sth) = @_;
 
-    my $signature = $sth->FETCH('avatica_signature');
+    my $signature = $sth->FETCH('phoenix_signature');
 
-    my $avatica_rows_list = $sth->{avatica_data};
-    my $avatica_rows_done = $sth->{avatica_data_done};
+    my $phoenix_rows_list = $sth->{phoenix_data};
+    my $phoenix_rows_done = $sth->{phoenix_data_done};
 
-    if ((!$avatica_rows_list || !@$avatica_rows_list) && !$avatica_rows_done) {
-        my $statement_id  = $sth->FETCH('avatica_statement_id');
+    if ((!$phoenix_rows_list || !@$phoenix_rows_list) && !$phoenix_rows_done) {
+        my $statement_id  = $sth->FETCH('phoenix_statement_id');
         my ($ret, $response) = _client($sth, 'fetch', $statement_id, undef, FETCH_SIZE);
         return unless $ret;
 
         my $frame = $response->get_frame;
-        $sth->{avatica_data_done} = $frame->get_done;
-        $sth->{avatica_data} = $frame->get_rows_list;
+        $sth->{phoenix_data_done} = $frame->get_done;
+        $sth->{phoenix_data} = $frame->get_rows_list;
 
-        $avatica_rows_done = $sth->{avatica_data_done};
-        $avatica_rows_list = $sth->{avatica_data};
+        $phoenix_rows_done = $sth->{phoenix_data_done};
+        $phoenix_rows_list = $sth->{phoenix_data};
     }
 
-    if ($avatica_rows_list && @$avatica_rows_list) {
-        my $avatica_row = shift @$avatica_rows_list;
-        my $values = $avatica_row->get_value_list;
+    if ($phoenix_rows_list && @$phoenix_rows_list) {
+        my $phoenix_row = shift @$phoenix_rows_list;
+        my $values = $phoenix_row->get_value_list;
         my $columns = $signature->get_columns_list;
-        my $row = DBD::Avatica::Types->row_from_jdbc($values, $columns);
+        my $row = DBD::Phoenix::Types->row_from_jdbc($values, $columns);
         return $sth->_set_fbav($row);
     }
 
@@ -417,10 +417,10 @@ sub fetch {
 *fetchrow_arrayref = \&fetch;
 
 sub rows {
-    shift->{avatica_rows}
+    shift->{phoenix_rows}
 }
 
-# It seems that here need to call _avatica_close_statement method,
+# It seems that here need to call _phoenix_close_statement method,
 # but then such a scenario will not work
 # when there are many "execute" commands for one "prepare" command.
 # Therefore, we will not do this here.
@@ -432,7 +432,7 @@ sub finish {
 
 sub STORE {
     my ($sth, $attr, $value) = @_;
-    if ($attr =~ m/^avatica_/) {
+    if ($attr =~ m/^phoenix_/) {
         $sth->{$attr} = $value;
         return 1;
     }
@@ -441,27 +441,27 @@ sub STORE {
 
 sub FETCH {
     my ($sth, $attr) = @_;
-    if ($attr =~ m/^avatica_/) {
+    if ($attr =~ m/^phoenix_/) {
         return $sth->{$attr};
     }
     if ($attr eq 'ParamValues') {
-        return $sth->{avatica_bind_params};
+        return $sth->{phoenix_bind_params};
     }
     return $sth->SUPER::FETCH($attr);
 }
 
-sub _avatica_close_statement {
+sub _phoenix_close_statement {
     my $sth = shift;
-    my $statement_id  = $sth->FETCH('avatica_statement_id');
+    my $statement_id  = $sth->FETCH('phoenix_statement_id');
     _client($sth, 'close_statement', $statement_id) if $statement_id;
-    $sth->STORE(avatica_statement_id => undef);
+    $sth->STORE(phoenix_statement_id => undef);
 }
 
 sub DESTROY {
     my $sth = shift;
     return if $sth->FETCH('InactiveDestroy');
     return unless $sth->FETCH('Database')->FETCH('Active');
-    eval { _avatica_close_statement($sth) };
+    eval { _phoenix_close_statement($sth) };
     $sth->finish;
 }
 
