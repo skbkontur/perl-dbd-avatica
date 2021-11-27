@@ -226,7 +226,7 @@ sub column_info {
     return _sth_from_result_set($dbh, 'column_info', $response);
 }
 
-# returned coilumns:
+# returned columns:
 # TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, KEY_SEQ, PK_NAME,
 # ASC_OR_DESC, DATA_TYPE, TYPE_NAME, COLUMN_SIZE, TYPE_ID, VIEW_CONSTANT
 sub primary_key_info {
@@ -324,7 +324,7 @@ use warnings;
 
 use DBI;
 
-use Avatica::Types;
+use DBD::Avatica::Types;
 
 use constant FETCH_SIZE => 2000;
 
@@ -342,7 +342,7 @@ sub execute {
     my $statement_id = $sth->FETCH('avatica_statement_id');
     my $signature = $sth->FETCH('avatica_signature');
 
-    my $mapped_params = Avatica::Types->row_to_jdbc(\@bind_values, $signature->get_parameters_list);
+    my $mapped_params = DBD::Avatica::Types->row_to_jdbc(\@bind_values, $signature->get_parameters_list);
 
     my ($ret, $response) = _client($sth, 'execute', $statement_id, $signature, $mapped_params, FETCH_SIZE);
     return unless $ret;
@@ -407,7 +407,7 @@ sub fetch {
         my $avatica_row = shift @$avatica_rows_list;
         my $values = $avatica_row->get_value_list;
         my $columns = $signature->get_columns_list;
-        my $row = Avatica::Types->row_from_jdbc($values, $columns);
+        my $row = DBD::Avatica::Types->row_from_jdbc($values, $columns);
         return $sth->_set_fbav($row);
     }
 
