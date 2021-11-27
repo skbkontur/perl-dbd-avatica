@@ -226,6 +226,29 @@ sub column_info {
     return _sth_from_result_set($dbh, 'column_info', $response);
 }
 
+# returned coilumns:
+# TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, KEY_SEQ, PK_NAME,
+# ASC_OR_DESC, DATA_TYPE, TYPE_NAME, COLUMN_SIZE, TYPE_ID, VIEW_CONSTANT
+sub primary_key_info {
+    my ($dbh, $catalog, $schema, $table) = @_;
+
+    my ($ret, $response) = _client($dbh, 'primary_keys', $catalog, $schema, $table);
+    return unless $ret;
+
+    # add phoenix specific columns
+    my $s = $response->get_signature;
+    # The following are non-standard Phoenix extensions
+    # This returns '\x00\x00\x00A' or '\x00\x00\x00D' , but that's consistent with Java
+    $s->add_columns(Avatica::Client->_build_column_metadata(7, 'ASC_OR_DESC', 12));
+    $s->add_columns(Avatica::Client->_build_column_metadata(8, 'DATA_TYPE', 5));
+    $s->add_columns(Avatica::Client->_build_column_metadata(9, 'TYPE_NAME', 12));
+    $s->add_columns(Avatica::Client->_build_column_metadata(10, 'COLUMN_SIZE', 5));
+    $s->add_columns(Avatica::Client->_build_column_metadata(11, 'TYPE_ID', 5));
+    $s->add_columns(Avatica::Client->_build_column_metadata(12, 'VIEW_CONSTANT', 12));
+
+    return _sth_from_result_set($dbh, 'primary_keys', $response);
+}
+
 sub _sth_from_result_set {
     my ($dbh, $operation, $result_set) = @_;
 
