@@ -204,9 +204,54 @@ sub table_info {
     my $dbh = shift;
     my ($catalog, $schema, $table, $type) = @_;
 
+    # minimum number of columns
+    my $cols = ['TABLE_CAT', 'TABLE_SCHEM', 'TABLE_NAME', 'TABLE_TYPE', 'REMARKS'];
+
+    if (
+        defined $catalog && $catalog eq '%' &&
+        defined $schema && $schema eq '' &&
+        defined $table && $table eq ''
+    ) {
+        # returned columns: TABLE_CAT
+        my ($ret, $response) = _client($dbh, 'catalog');
+        return unless $ret;
+        my $sth = _sth_from_result_set($dbh, 'table_info_catalog', $response);
+        my $rows = $sth->fetchall_arrayref;
+        push @$_, (undef) x 4 for @$rows; # fill to the minimum number of columns
+        return _sth_from_data('table_info_catalog', $rows, $cols);
+    }
+
+    if (
+        defined $catalog && $catalog eq '' &&
+        defined $schema && $schema eq '%' &&
+        defined $table && $table eq ''
+    ) {
+        # returned columns: TABLE_SCHEM, TABLE_CATALOG
+        my ($ret, $response) = _client($dbh, 'schemas');
+        return unless $ret;
+        my $sth = _sth_from_result_set($dbh, 'table_info_schemas', $response);
+        my $rows = $sth->fetchall_arrayref;
+        $_ = [reverse(@$_), (undef) x 3] for @$rows; # fill to the minimum number of columns
+        return _sth_from_data('table_info_schemas', $rows, $cols);
+    }
+
+    if (
+        defined $catalog && $catalog eq '' &&
+        defined $schema && $schema eq '' &&
+        defined $table && $table eq '' &&
+        defined $type && $type eq '%'
+    ) {
+        # returned columns: TABLE_TYPE
+        my ($ret, $response) = _client($dbh, 'table_types');
+        return unless $ret;
+        my $sth = _sth_from_result_set($dbh, 'table_info_table_types', $response);
+        my $rows = $sth->fetchall_arrayref;
+        $_ = [(undef) x 3, @$_, undef] for @$rows; # fill to the minimum number of columns
+        return _sth_from_data('table_info_table_types', $rows, $cols);
+    }
+
     my ($ret, $response) = _client($dbh, 'tables', $catalog, $schema, $table, $type);
     return unless $ret;
-
     return _sth_from_result_set($dbh, 'table_info', $response);
 }
 
@@ -247,6 +292,19 @@ sub primary_key_info {
     $s->add_columns(Avatica::Client->_build_column_metadata(12, 'VIEW_CONSTANT', 12));
 
     return _sth_from_result_set($dbh, 'primary_keys', $response);
+}
+
+sub foreign_key_info { }
+
+sub statistics_info { }
+
+sub type_info_all { [] }
+
+sub _sth_from_data {
+    my ($statement, $rows, $col_names, %attr) = @_;
+    my $sponge = DBI->connect('dbi:Sponge:', '', '', { RaiseError => 1 });
+    my $sth = $sponge->prepare($statement, { rows=>$rows, NAME=>$col_names, %attr });
+    return $sth;
 }
 
 sub _sth_from_result_set {
