@@ -2,6 +2,7 @@ package DBD::Phoenix::Types;
 
 use strict;
 use warnings;
+use DBI ':sql_types';
 
 use Avatica::Types;
 
@@ -20,6 +21,43 @@ use constant JAVA_TO_REP => {
     13  => Avatica::Client::Protocol::Rep::SHORT(),             # UNSIGNED_SMALLINT
     20  => Avatica::Client::Protocol::Rep::JAVA_SQL_TIMESTAMP(),    # UNSIGNED_TIMESTAMP
     11  => Avatica::Client::Protocol::Rep::BYTE(),              # UNSIGNED_TINYINT
+};
+
+use constant JAVA_TO_DBI => {
+    -6  => SQL_TINYINT,                         # TINYINT
+    5   => SQL_SMALLINT,                        # SMALLINT
+    4   => SQL_INTEGER,                         # INTEGER
+    -5  => SQL_BIGINT,                          # BIGINT
+    6   => SQL_FLOAT,                           # FLOAT
+    8   => SQL_DOUBLE,                          # DOUBLE
+    2   => SQL_NUMERIC,                         # NUMERIC
+    1   => SQL_CHAR,                            # CHAR
+    91  => SQL_TYPE_DATE,                       # DATE
+    92  => SQL_TYPE_TIME,                       # TIME
+    93  => SQL_TYPE_TIMESTAMP,                  # TIMESTAMP
+    -2  => SQL_BINARY,                          # BINARY
+    -3  => SQL_VARBINARY,                       # VARBINARY
+    16  => SQL_BOOLEAN,                         # BOOLEAN
+
+    -7  => SQL_BIT,                             # BIT
+    7   => SQL_REAL,                            # REAL
+    3   => SQL_DECIMAL,                         # DECIMAL
+    12  => SQL_VARCHAR,                         # VARCHAR
+    -1  => SQL_LONGVARCHAR,                     # LONGVARCHAR
+    -4  => SQL_LONGVARBINARY,                   # LONGVARBINARY
+    2004  => SQL_BLOB,                          # BLOB
+    2005  => SQL_CLOB,                          # CLOB
+    -15 => SQL_CHAR,                            # NCHAR
+    -9  => SQL_VARCHAR,                         # NVARCHAR
+    -16 => SQL_LONGVARCHAR,                     # LONGNVARCHAR
+    2011  => SQL_CLOB,                          # NCLOB
+    2009  => SQL_LONGVARCHAR,                   # SQLXML
+    2013 => SQL_TYPE_TIME_WITH_TIMEZONE,        # TIME_WITH_TIMEZONE
+    2014 => SQL_TYPE_TIMESTAMP_WITH_TIMEZONE,   # TIMESTAMP_WITH_TIMEZONE
+
+    # Returned by Avatica for Arrays in EMPTY resultsets
+    2000  => SQL_ARRAY,                         # JAVA_OBJECT
+    2003  => SQL_ARRAY,                         # ARRAY
 };
 
 # params:
@@ -54,6 +92,25 @@ sub to_jdbc {
     }
 
     return $typed_value;
+}
+
+# params:
+# class
+# Avatica::Client::Protocol::AvaticaType
+sub to_dbi {
+    my ($class, $avatica_type) = @_;
+    my $java_type_id = $avatica_type->get_id;
+
+    if ($java_type_id > 0x7FFFFFFF) {
+        $java_type_id = -(($java_type_id ^ 0xFFFFFFFF) + 1);
+    }
+
+    # ARRAY (may be for bind params only)
+    return SQL_ARRAY if $java_type_id > 2900 && $java_type_id < 3100;
+
+    my $dbi_type_id = $class->JAVA_TO_DBI()->{$java_type_id};
+    return $java_type_id unless $dbi_type_id;
+    return $dbi_type_id;
 }
 
 1;

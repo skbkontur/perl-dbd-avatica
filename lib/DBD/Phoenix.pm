@@ -514,8 +514,12 @@ sub FETCH {
         return $sth->{$attr};
     }
     if ($attr eq 'NAME') {
-        my $signature = $sth->{phoenix_signature};
-        return [map { $_->get_column_name } @{$signature->get_columns_list}];
+        return $sth->{phoenix_cache_name} ||=
+            [map { $_->get_column_name } @{$sth->{phoenix_signature}->get_columns_list}];
+    }
+    if ($attr eq 'TYPE') {
+        return $sth->{phoenix_cache_type} ||=
+            [map { DBD::Phoenix::Types->to_dbi($_->get_type) } @{$sth->{phoenix_signature}->get_columns_list}];
     }
     if ($attr eq 'ParamValues') {
         my $params = $sth->{phoenix_bind_params};
