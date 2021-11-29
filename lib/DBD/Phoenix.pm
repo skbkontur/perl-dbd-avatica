@@ -513,6 +513,10 @@ sub FETCH {
     if ($attr =~ m/^phoenix_/) {
         return $sth->{$attr};
     }
+    if ($attr eq 'NAME') {
+        my $signature = $sth->{phoenix_signature};
+        return [map { $_->get_column_name } @{$signature->get_columns_list}];
+    }
     if ($attr eq 'ParamValues') {
         my $params = $sth->{phoenix_bind_params};
         return {map { $_ => $params->[$_] } @$params};
