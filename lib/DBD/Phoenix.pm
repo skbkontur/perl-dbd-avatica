@@ -521,6 +521,18 @@ sub FETCH {
         return $sth->{phoenix_cache_type} ||=
             [map { DBD::Phoenix::Types->to_dbi($_->get_type) } @{$sth->{phoenix_signature}->get_columns_list}];
     }
+    if ($attr eq 'PRECISION') {
+        return $sth->{phoenix_cache_precision} ||=
+            [map { $_->get_display_size } @{$sth->{phoenix_signature}->get_columns_list}];
+    }
+    if ($attr eq 'SCALE') {
+        return $sth->{phoenix_cache_scale} ||=
+            [map { $_->get_scale || undef } @{$sth->{phoenix_signature}->get_columns_list}];
+    }
+    if ($attr eq 'NULLABLE') {
+        return $sth->{phoenix_cache_nullable} ||=
+            [map { $_->get_nullable} @{$sth->{phoenix_signature}->get_columns_list}];
+    }
     if ($attr eq 'ParamValues') {
         my $params = $sth->{phoenix_bind_params};
         return {map { $_ => $params->[$_] } @$params};
