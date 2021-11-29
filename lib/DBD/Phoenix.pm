@@ -174,9 +174,7 @@ sub prepare {
     $sth->STORE(phoenix_signature => $signature);
     $sth->STORE(phoenix_rows => -1);
 
-    my $params = {};
-    $sth->STORE(phoenix_bind_params => $params);
-    $params->{$_} = undef for 1 .. $signature->parameters_size;
+    $sth->STORE(phoenix_bind_params => []);
 
     $outer;
 }
@@ -388,14 +386,26 @@ use constant FETCH_SIZE => 2000;
 
 *_client = \&DBD::Phoenix::_client;
 
+
+sub bind_param {
+    my ($sth, $param, $value, $attr) = @_;
+
+    # at the moment the type is not processed
+    # my ($type) = (ref $attr) ? $attr->{'TYPE'} : $attr;
+
+    my $params = $sth->FETCH('phoenix_bind_params');
+    $params->[$param - 1] = $value;
+    1;
+}
+
 sub execute {
     my ($sth, @bind_values) = @_;
 
+    my $bind_params = $sth->FETCH('phoenix_bind_params');
+    @bind_values = @$bind_params if !@bind_values && $bind_params && @$bind_params;
+
     my $num_params = $sth->FETCH('NUM_OF_PARAMS');
     return $sth->set_err(1, 'Wrong number of parameters') if @bind_values != $num_params;
-
-    my $bind_params = $sth->FETCH('phoenix_bind_params');
-    $bind_params->{$_ + 1} = $bind_values[$_] for 0 .. scalar(keys %{$bind_params});
 
     my $statement_id = $sth->FETCH('phoenix_statement_id');
     my $signature = $sth->FETCH('phoenix_signature');
@@ -462,6 +472,7 @@ sub fetch {
     }
 
     if ($phoenix_rows_list && @$phoenix_rows_list) {
+        $sth->{phoenix_rows} += 1;
         my $phoenix_row = shift @$phoenix_rows_list;
         my $values = $phoenix_row->get_value_list;
         my $columns = $signature->get_columns_list;
@@ -503,7 +514,8 @@ sub FETCH {
         return $sth->{$attr};
     }
     if ($attr eq 'ParamValues') {
-        return $sth->{phoenix_bind_params};
+        my $params = $sth->{phoenix_bind_params};
+        return {map { $_ => $params->[$_] } @$params};
     }
     return $sth->SUPER::FETCH($attr);
 }
