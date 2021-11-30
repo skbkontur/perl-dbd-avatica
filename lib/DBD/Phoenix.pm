@@ -77,14 +77,14 @@ sub connect {
         return;
     }
 
-    $drh->STORE(phoenix_url => $url);
+    $drh->{phoenix_url} = $url;
 
     my $client = Avatica::Client->new(url => $url);
     my $connection_id = _random_str();
 
-    $drh->STORE(phoenix_client => $client);
+    $drh->{phoenix_client} = $client;
     my ($ret, $response) = _client($drh, 'open_connection', $connection_id);
-    $drh->STORE(phoenix_client => undef);
+    $drh->{phoenix_client} = undef;
 
     return unless $ret;
 
@@ -93,11 +93,12 @@ sub connect {
     });
 
     $dbh->STORE(Active => 1);
-    $dbh->STORE(phoenix_client => $client);
-    $dbh->STORE(phoenix_connection_id => $connection_id);
-    my $connections = $drh->FETCH('phoenix_connections') || [];
+
+    $dbh->{phoenix_client} = $client;
+    $dbh->{phoenix_connection_id} = $connection_id;
+    my $connections = $drh->{phoenix_connections} || [];
     push @$connections, $dbh;
-    $drh->STORE(phoenix_connections => $connections);
+    $drh->{phoenix_connections} = $connections;
 
     for (qw/AutoCommit ReadOnly TransactionIsolation Catalog Schema/) {
         $dbh->{$_} = delete $attr->{$_} if exists $attr->{$_};
@@ -109,13 +110,13 @@ sub connect {
 
 sub data_sources {
     my $drh = shift;
-    my $url = $drh->FETCH('phoenix_url');
+    my $url = $drh->{phoenix_url};
     return "dbi:Phoenix:url=$url";
 }
 
 sub disconnect_all {
     my $drh = shift;
-    my $connections = $drh->FETCH('phoenix_connections');
+    my $connections = $drh->{phoenix_connections};
     return unless $connections && @$connections;
 
     my ($dbh, $name);
@@ -174,14 +175,13 @@ sub prepare {
     $sth->STORE(NUM_OF_PARAMS => $signature->parameters_size);
     $sth->STORE(NUM_OF_FIELDS => undef);
 
-    $sth->STORE(phoenix_client => $dbh->FETCH('phoenix_client'));
-    $sth->STORE(phoenix_connection_id => $dbh->FETCH('phoenix_connection_id'));
-    $sth->STORE(phoenix_statement_id => $statement_id);
-    $sth->STORE(phoenix_signature => $signature);
-    $sth->STORE(phoenix_params => $signature->get_parameters_list);
-    $sth->STORE(phoenix_rows => -1);
-
-    $sth->STORE(phoenix_bind_params => []);
+    $sth->{phoenix_client} = $dbh->FETCH('phoenix_client');
+    $sth->{phoenix_connection_id} = $dbh->FETCH('phoenix_connection_id');
+    $sth->{phoenix_statement_id} = $statement_id;
+    $sth->{phoenix_signature} = $signature;
+    $sth->{phoenix_params} = $signature->get_parameters_list;
+    $sth->{phoenix_rows} = -1;
+    $sth->{phoenix_bind_params} = [];
 
     $outer;
 }
@@ -325,14 +325,13 @@ sub _sth_from_result_set {
     $sth->{phoenix_data_done} = $frame->get_done;
     $sth->{phoenix_data} = $frame->get_rows_list;
     $sth->{phoenix_rows} = 0;
+    $sth->{phoenix_client} = $dbh->{phoenix_client};
+    $sth->{phoenix_connection_id} = $dbh->{phoenix_connection_id};
+    $sth->{phoenix_statement_id} = $statement_id;
+    $sth->{phoenix_signature} = $signature;
 
     $sth->STORE(NUM_OF_FIELDS => $num_columns);
     $sth->STORE(Active => 1);
-
-    $sth->STORE(phoenix_client => $dbh->FETCH('phoenix_client'));
-    $sth->STORE(phoenix_connection_id => $dbh->FETCH('phoenix_connection_id'));
-    $sth->STORE(phoenix_statement_id => $statement_id);
-    $sth->STORE(phoenix_signature => $signature);
 
     $outer;
 }
@@ -360,7 +359,7 @@ sub disconnect {
     $dbh->STORE(Active => 0);
 
     my ($ret, $response) = _client($dbh, 'close_connection');
-    $dbh->STORE(phoenix_client => undef);
+    $dbh->{phoenix_client} = undef;
 
     return $ret;
 }
@@ -419,7 +418,7 @@ sub bind_param {
     # at the moment the type is not processed
     # my ($type) = (ref $attr) ? $attr->{'TYPE'} : $attr;
 
-    my $params = $sth->FETCH('phoenix_bind_params');
+    my $params = $sth->{phoenix_bind_params};
     $params->[$param - 1] = $value;
     1;
 }
@@ -427,16 +426,16 @@ sub bind_param {
 sub execute {
     my ($sth, @bind_values) = @_;
 
-    my $bind_params = $sth->FETCH('phoenix_bind_params');
+    my $bind_params = $sth->{phoenix_bind_params};
     @bind_values = @$bind_params if !@bind_values && $bind_params && @$bind_params;
 
     my $num_params = $sth->FETCH('NUM_OF_PARAMS');
     return $sth->set_err(1, 'Wrong number of parameters') if @bind_values != $num_params;
 
-    my $statement_id = $sth->FETCH('phoenix_statement_id');
-    my $signature = $sth->FETCH('phoenix_signature');
+    my $statement_id = $sth->{phoenix_statement_id};
+    my $signature = $sth->{phoenix_signature};
 
-    my $mapped_params = DBD::Phoenix::Types->row_to_jdbc(\@bind_values, $sth->FETCH('phoenix_params'));
+    my $mapped_params = DBD::Phoenix::Types->row_to_jdbc(\@bind_values, $sth->{phoenix_params});
 
     my ($ret, $response) = _client($sth, 'execute', $statement_id, $signature, $mapped_params, FETCH_SIZE);
     return unless $ret;
@@ -446,11 +445,11 @@ sub execute {
     if ($result->get_own_statement) {
         my $new_statement_id = $result->get_statement_id;
         _phoenix_close_statement($sth) if $statement_id && $statement_id != $new_statement_id;
-        $sth->STORE(phoenix_statement_id => $new_statement_id);
+        $sth->{phoenix_statement_id} = $new_statement_id;
     }
 
     $signature = $result->get_signature;
-    $sth->STORE(phoenix_signature => $signature);
+    $sth->{phoenix_signature} = $signature;
 
     my $frame = $result->get_first_frame;
     $sth->{phoenix_data_done} = $frame->get_done;
@@ -479,13 +478,13 @@ sub execute {
 sub fetch {
     my ($sth) = @_;
 
-    my $signature = $sth->FETCH('phoenix_signature');
+    my $signature = $sth->{phoenix_signature};
 
     my $phoenix_rows_list = $sth->{phoenix_data};
     my $phoenix_rows_done = $sth->{phoenix_data_done};
 
     if ((!$phoenix_rows_list || !@$phoenix_rows_list) && !$phoenix_rows_done) {
-        my $statement_id  = $sth->FETCH('phoenix_statement_id');
+        my $statement_id  = $sth->{phoenix_statement_id};
         my ($ret, $response) = _client($sth, 'fetch', $statement_id, undef, FETCH_SIZE);
         return unless $ret;
 
@@ -568,9 +567,9 @@ sub FETCH {
 
 sub _phoenix_close_statement {
     my $sth = shift;
-    my $statement_id  = $sth->FETCH('phoenix_statement_id');
+    my $statement_id  = $sth->{phoenix_statement_id};
     _client($sth, 'close_statement', $statement_id) if $statement_id;
-    $sth->STORE(phoenix_statement_id => undef);
+    $sth->{phoenix_statement_id} = undef;
 }
 
 sub DESTROY {
