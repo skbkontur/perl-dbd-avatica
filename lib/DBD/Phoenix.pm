@@ -172,6 +172,7 @@ sub prepare {
     $sth->STORE(phoenix_connection_id => $dbh->FETCH('phoenix_connection_id'));
     $sth->STORE(phoenix_statement_id => $statement_id);
     $sth->STORE(phoenix_signature => $signature);
+    $sth->STORE(phoenix_params => $signature->get_parameters_list);
     $sth->STORE(phoenix_rows => -1);
 
     $sth->STORE(phoenix_bind_params => []);
@@ -410,7 +411,7 @@ sub execute {
     my $statement_id = $sth->FETCH('phoenix_statement_id');
     my $signature = $sth->FETCH('phoenix_signature');
 
-    my $mapped_params = DBD::Phoenix::Types->row_to_jdbc(\@bind_values, $signature->get_parameters_list);
+    my $mapped_params = DBD::Phoenix::Types->row_to_jdbc(\@bind_values, $sth->FETCH('phoenix_params'));
 
     my ($ret, $response) = _client($sth, 'execute', $statement_id, $signature, $mapped_params, FETCH_SIZE);
     return unless $ret;
@@ -534,8 +535,8 @@ sub FETCH {
             [map { $_->get_nullable} @{$sth->{phoenix_signature}->get_columns_list}];
     }
     if ($attr eq 'ParamValues') {
-        my $params = $sth->{phoenix_bind_params};
-        return {map { $_ => $params->[$_] } @$params};
+        return $sth->{phoenix_cache_paramvalues} ||=
+            {map { $_ => ($sth->{phoenix_bind_params}->[$_ - 1] // undef) } 1 .. @{$sth->{phoenix_params} // []}};
     }
     return $sth->SUPER::FETCH($attr);
 }
