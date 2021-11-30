@@ -98,6 +98,12 @@ sub connect {
     my $connections = $drh->FETCH('phoenix_connections') || [];
     push @$connections, $dbh;
     $drh->STORE(phoenix_connections => $connections);
+
+    for (qw/AutoCommit ReadOnly TransactionIsolation Catalog Schema/) {
+        $dbh->{$_} = delete $attr->{$_} if exists $attr->{$_};
+    }
+    DBD::Phoenix::db::_sync_connection_params($dbh);
+
     $outer;
 }
 
@@ -331,6 +337,23 @@ sub _sth_from_result_set {
     $outer;
 }
 
+sub _sync_connection_params {
+    my $dbh = shift;
+    my %props = map { $_ => $dbh->{$_} }
+                grep { exists $dbh->{$_} }
+                qw/AutoCommit ReadOnly TransactionIsolation Catalog Schema/;
+
+    my ($ret, $response) = _client($dbh, 'connection_sync', \%props);
+    return unless $ret;
+
+    my $props = $response->get_conn_props;
+    $dbh->{AutoCommit} = $props->get_auto_commit if $props->has_auto_commit;
+    $dbh->{ReadOnly} = $props->get_read_only if $props->has_read_only;
+    $dbh->{TransactionIsolation} = $props->get_transaction_isolation;
+    $dbh->{Catalog} = $props->get_catalog if $props->get_catalog;
+    $dbh->{Schema} = $props->get_schema if $props->get_schema;
+}
+
 sub disconnect {
     my $dbh = shift;
     return 1 unless $dbh->FETCH('Active');
@@ -344,7 +367,9 @@ sub disconnect {
 
 sub STORE {
     my ($dbh, $attr, $value) = @_;
-    if ($attr eq 'AutoCommit') {
+    if (grep { $attr eq $_ } ('AutoCommit', 'ReadOnly', 'TransactionIsolation', 'Catalog', 'Schema')) {
+        $dbh->{$attr} = $value;
+        _sync_connection_params($dbh);
         return 1;
     }
     if ($attr =~ m/^phoenix_/) {
@@ -356,8 +381,8 @@ sub STORE {
 
 sub FETCH {
     my ($dbh, $attr) = @_;
-    if ($attr eq 'AutoCommit') {
-        return 1;
+    if (grep { $attr eq $_ } ('AutoCommit', 'ReadOnly', 'TransactionIsolation', 'Catalog', 'Schema')) {
+        return $dbh->{$attr};
     }
     if ($attr =~ m/^phoenix_/) {
         return $dbh->{$attr};
