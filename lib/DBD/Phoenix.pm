@@ -415,7 +415,7 @@ use constant FETCH_SIZE => 2000;
 sub bind_param {
     my ($sth, $param, $value, $attr) = @_;
 
-    # at the moment the type is not processed
+    # at the moment the type is not processed because we know type from prepare request
     # my ($type) = (ref $attr) ? $attr->{'TYPE'} : $attr;
 
     my $params = $sth->{phoenix_bind_params};
@@ -438,7 +438,22 @@ sub execute {
     my $mapped_params = DBD::Phoenix::Types->row_to_jdbc(\@bind_values, $sth->{phoenix_params});
 
     my ($ret, $response) = _client($sth, 'execute', $statement_id, $signature, $mapped_params, FETCH_SIZE);
-    return unless $ret;
+    unless ($ret) {
+        return if $num_params != 0 || index($response->{message}, 'NullPointerException') == -1;
+
+        # https://issues.apache.org/jira/browse/CALCITE-4900
+        # so, workaround, if num_params == 0 then need to use create_statement && prepare_and_execute without params
+
+        my $sql = $sth->FETCH('Statement');
+
+        ($ret, $response) = _client($sth, 'create_statement');
+        return unless $ret;
+
+        $statement_id = $sth->{phoenix_statement_id} = $response->get_statement_id;
+
+        ($ret, $response) = _client($sth, 'prepare_and_execute', $statement_id, $sql, undef, FETCH_SIZE);
+        return unless $ret;
+    }
 
     my $result = $response->get_results(0);
 
