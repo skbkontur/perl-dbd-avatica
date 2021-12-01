@@ -444,6 +444,9 @@ sub execute {
         # https://issues.apache.org/jira/browse/CALCITE-4900
         # so, workaround, if num_params == 0 then need to use create_statement && prepare_and_execute without params
 
+        # clear errors
+        $sth->set_err(undef, undef, '');
+
         my $sql = $sth->FETCH('Statement');
 
         ($ret, $response) = _client($sth, 'create_statement');
