@@ -110,6 +110,7 @@ sub connect {
         $dbh->{$_} = delete $attr->{$_} if exists $attr->{$_};
     }
     DBD::Phoenix::db::_sync_connection_params($dbh);
+    DBD::Phoenix::db::_load_database_properties($dbh);
 
     $outer;
 }
@@ -204,7 +205,36 @@ sub rollback {
     return $ret;
 }
 
+my %get_info_type = (
+    ## Driver information:
+    14 => ['SQL_SEARCH_PATTERN_ESCAPE',           '\\'                      ],
+    ## DBMS Information
+    17 => ['SQL_DBMS_NAME',                       'DBMS_NAME'               ], # magic word
+    18 => ['SQL_DBMS_VERSION',                    'DBMS_VERSION'            ], # magic word
+    ## Data source information
+    ## Supported SQL
+   114 => ['SQL_CATALOG_LOCATION',                0                         ],
+    41 => ['SQL_CATALOG_NAME_SEPARATOR',          ''                        ],
+    29 => ['SQL_IDENTIFIER_QUOTE_CHAR',           q{"}                      ],
+    ## SQL limits
+    ## Scalar function information
+    ## Conversion information - all but BIT, LONGVARBINARY, and LONGVARCHAR
+);
+for (keys %get_info_type) {
+    $get_info_type{$get_info_type{$_}->[0]} = $get_info_type{$_};
+}
+my %get_info_type_cache = ();
+
 sub get_info {
+    my ($dbh, $type) = @_;
+    my $res = $get_info_type{$type}[1];
+
+    if (grep { $res eq $_ } 'DBMS_NAME', 'DBMS_VERSION') {
+        _load_database_properties($dbh) unless %get_info_type_cache;
+        return $get_info_type_cache{$res};
+    }
+
+    return $res;
 }
 
 # returned columns:
@@ -359,6 +389,45 @@ sub _sync_connection_params {
     $dbh->{Schema} = $props->get_schema if $props->get_schema;
 }
 
+# phoenix specific
+sub _map_database_properties {
+    my $properties = shift;
+
+    my $res = {
+        AVATICA_DRIVER_NAME => '',
+        AVATICA_DRIVER_VERSION => '',
+        DBMS_NAME => '',
+        DBMS_VERSION => '',
+        SQL_KEYWORDS => ''
+    };
+
+    for my $p (@$properties) {
+        my $name = $p->get_key->get_name // '';
+        if ($name eq 'GET_DRIVER_NAME') {
+            $res->{AVATICA_DRIVER_NAME} = $p->get_value->get_string_value;
+        } elsif ($name eq 'GET_DRIVER_VERSION') {
+            $res->{AVATICA_DRIVER_VERSION} = $p->get_value->get_string_value;
+        } elsif ($name eq 'GET_DATABASE_PRODUCT_VERSION') {
+            $res->{DBMS_VERSION} = $p->get_value->get_string_value;
+        } elsif ($name eq 'GET_DATABASE_PRODUCT_NAME') {
+            $res->{DBMS_NAME} = $p->get_value->get_string_value;
+        } elsif ($name eq 'GET_S_Q_L_KEYWORDS') {
+            $res->{SQL_KEYWORDS} = $p->get_value->get_string_value;
+        }
+    }
+
+    return $res;
+}
+
+sub _load_database_properties {
+    my $dbh = shift;
+    my ($ret, $response) = _client($dbh, 'database_property');
+    return unless $ret;
+    my $props = _map_database_properties($response->get_props_list);
+    $dbh->{$_} = $props->{$_} for qw/AVATICA_DRIVER_NAME AVATICA_DRIVER_VERSION/;
+    $get_info_type_cache{$_} = $props->{$_} for qw/DBMS_NAME DBMS_VERSION SQL_KEYWORDS/;
+}
+
 sub disconnect {
     my $dbh = shift;
     return 1 unless $dbh->FETCH('Active');
@@ -386,10 +455,11 @@ sub STORE {
 
 sub FETCH {
     my ($dbh, $attr) = @_;
-    if (grep { $attr eq $_ } ('AutoCommit', 'ReadOnly', 'TransactionIsolation', 'Catalog', 'Schema')) {
+    if ($attr =~ m/^phoenix_/) {
         return $dbh->{$attr};
     }
-    if ($attr =~ m/^phoenix_/) {
+    if (grep { $attr eq $_ }
+        qw/AutoCommit ReadOnly TransactionIsolation Catalog Schema AVATICA_DRIVER_NAME AVATICA_DRIVER_VERSION/) {
         return $dbh->{$attr};
     }
     return $dbh->SUPER::FETCH($attr);
