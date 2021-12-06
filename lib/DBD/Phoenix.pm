@@ -44,6 +44,8 @@ sub _client {
     unless ($ret) {
         if ($response->{protocol}) {
             my ($err, $msg, $state) =  @{$response->{protocol}}{qw/error_code message sql_state/};
+            my $status = $response->{http_status};
+            $msg = "http status $status, error code $err, sql state $state" unless $msg;
             $h->set_err($err, $msg, $state);
         } else {
             $h->set_err(1, $response->{message});
@@ -79,7 +81,11 @@ sub connect {
 
     $drh->{phoenix_url} = $url;
 
-    my $client = Avatica::Client->new(url => $url);
+    my %client_params;
+    $client_params{ua} = delete $attr->{UserAgent} if $attr->{UserAgent};
+    $client_params{max_retries} = delete $attr->{MaxRetries} if $attr->{MaxRetries};
+
+    my $client = Avatica::Client->new(url => $url, %client_params);
     my $connection_id = _random_str();
 
     $drh->{phoenix_client} = $client;
