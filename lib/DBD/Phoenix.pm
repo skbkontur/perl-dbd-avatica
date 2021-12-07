@@ -5,7 +5,7 @@ use warnings;
 use DBI;
 use vars qw($VERSION $err $errstr $sqlstate $drh);
 
-$VERSION = '0.001';
+$VERSION = '0.01.0';
 
 $drh = undef;
 
@@ -207,6 +207,8 @@ sub rollback {
 
 my %get_info_type = (
     ## Driver information:
+     6 => ['SQL_DRIVER_NAME',                     'DBD::Phoenix'            ],
+     7 => ['SQL_DRIVER_VER',                      'DBD_VERSION'             ], # magic word
     14 => ['SQL_SEARCH_PATTERN_ESCAPE',           '\\'                      ],
     ## DBMS Information
     17 => ['SQL_DBMS_NAME',                       'DBMS_NAME'               ], # magic word
@@ -215,7 +217,9 @@ my %get_info_type = (
     ## Supported SQL
    114 => ['SQL_CATALOG_LOCATION',                0                         ],
     41 => ['SQL_CATALOG_NAME_SEPARATOR',          ''                        ],
+    28 => ['SQL_IDENTIFIER_CASE',                 1                         ], # SQL_IC_UPPER
     29 => ['SQL_IDENTIFIER_QUOTE_CHAR',           q{"}                      ],
+    89 => ['SQL_KEYWORDS',                        'SQL_KEYWORDS'            ], # magic word
     ## SQL limits
     ## Scalar function information
     ## Conversion information - all but BIT, LONGVARBINARY, and LONGVARCHAR
@@ -223,15 +227,21 @@ my %get_info_type = (
 for (keys %get_info_type) {
     $get_info_type{$get_info_type{$_}->[0]} = $get_info_type{$_};
 }
-my %get_info_type_cache = ();
 
 sub get_info {
     my ($dbh, $type) = @_;
     my $res = $get_info_type{$type}[1];
 
-    if (grep { $res eq $_ } 'DBMS_NAME', 'DBMS_VERSION') {
-        _load_database_properties($dbh) unless %get_info_type_cache;
-        return $get_info_type_cache{$res};
+    if (grep { $res eq $_ } 'DBMS_NAME', 'DBMS_VERSION', 'SQL_KEYWORDS') {
+        _load_database_properties($dbh) unless $dbh->{phoenix_info_type_cache};
+        return $dbh->{phoenix_info_type_cache}{$res};
+    }
+
+    if ($res eq 'DBD_VERSION') {
+        my $v = $DBD::Phoenix::VERSION;
+        $v =~ s/_/./g; # 1.12.3_4 strip trial/dev symbols
+        $v =~ s/[^0-9.]//g; # strip trial/dev symbols, a-la "-TRIAL" at the end
+        return sprintf '%02d.%02d.%1d%1d%1d%1d', (split(/\./, "${v}.0.0.0.0.0.0"))[0..5];
     }
 
     return $res;
@@ -425,7 +435,7 @@ sub _load_database_properties {
     return unless $ret;
     my $props = _map_database_properties($response->get_props_list);
     $dbh->{$_} = $props->{$_} for qw/AVATICA_DRIVER_NAME AVATICA_DRIVER_VERSION/;
-    $get_info_type_cache{$_} = $props->{$_} for qw/DBMS_NAME DBMS_VERSION SQL_KEYWORDS/;
+    $dbh->{phoenix_info_type_cache}{$_} = $props->{$_} for qw/DBMS_NAME DBMS_VERSION SQL_KEYWORDS/;
 }
 
 sub disconnect {
