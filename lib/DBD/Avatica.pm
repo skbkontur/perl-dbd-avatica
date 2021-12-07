@@ -74,7 +74,9 @@ sub connect {
 
     my $adapter_name = ucfirst $dsn{adapter_name} // '';
     return $drh->set_err(1, q{Parameter "adapter_name" is required in dsn}) unless $adapter_name;
-
+    my $adapter_class_path = "DBD/Avatica/Adapter/${adapter_name}.pm";
+    my $adapter_class = "DBD::Avatica::Adapter::${adapter_name}";
+    return $drh->set_err(1, qq{Adapter for adapter_name param $adapter_name not found}) unless eval { require $adapter_class_path; 1};
 
     my $url = $dsn{url};
     $url = 'http://' . $dsn{'hostname'} . ':' . $dsn{'port'} if !$url && $dsn{'hostname'} && $dsn{'port'};
@@ -98,6 +100,9 @@ sub connect {
     my ($outer, $dbh) = DBI::_new_dbh($drh, {
         'Name' => "${adapter_name};${url}"
     });
+
+    my $adapter = $adapter_class->new(dbh => $dbh);
+    $dbh->{avatica_adapter} = $adapter;
 
     $dbh->STORE(Active => 1);
 
@@ -190,6 +195,8 @@ sub prepare {
     $sth->{avatica_params} = $signature->get_parameters_list;
     $sth->{avatica_rows} = -1;
     $sth->{avatica_bind_params} = [];
+    $sth->{avatica_data_done} = 1;
+    $sth->{avatica_data} = [];
 
     $outer;
 }
@@ -332,16 +339,8 @@ sub primary_key_info {
     my ($ret, $response) = _client($dbh, 'primary_keys', $catalog, $schema, $table);
     return unless $ret;
 
-    # add phoenix specific columns
-    my $s = $response->get_signature;
-    # The following are non-standard Phoenix extensions
-    # This returns '\x00\x00\x00A' or '\x00\x00\x00D' , but that's consistent with Java
-    $s->add_columns(Avatica::Client->_build_column_metadata(7, 'ASC_OR_DESC', 12));
-    $s->add_columns(Avatica::Client->_build_column_metadata(8, 'DATA_TYPE', 5));
-    $s->add_columns(Avatica::Client->_build_column_metadata(9, 'TYPE_NAME', 12));
-    $s->add_columns(Avatica::Client->_build_column_metadata(10, 'COLUMN_SIZE', 5));
-    $s->add_columns(Avatica::Client->_build_column_metadata(11, 'TYPE_ID', 5));
-    $s->add_columns(Avatica::Client->_build_column_metadata(12, 'VIEW_CONSTANT', 12));
+    # extend signature with database specific columns
+    $dbh->{avatica_adapter}->extend_primary_key_info_signature($response->get_signature);
 
     return _sth_from_result_set($dbh, 'primary_keys', $response);
 }
@@ -400,41 +399,11 @@ sub _sync_connection_params {
     $dbh->{Schema} = $props->get_schema if $props->get_schema;
 }
 
-# phoenix specific
-sub _map_database_properties {
-    my $properties = shift;
-
-    my $res = {
-        AVATICA_DRIVER_NAME => '',
-        AVATICA_DRIVER_VERSION => '',
-        DBMS_NAME => '',
-        DBMS_VERSION => '',
-        SQL_KEYWORDS => ''
-    };
-
-    for my $p (@$properties) {
-        my $name = $p->get_key->get_name // '';
-        if ($name eq 'GET_DRIVER_NAME') {
-            $res->{AVATICA_DRIVER_NAME} = $p->get_value->get_string_value;
-        } elsif ($name eq 'GET_DRIVER_VERSION') {
-            $res->{AVATICA_DRIVER_VERSION} = $p->get_value->get_string_value;
-        } elsif ($name eq 'GET_DATABASE_PRODUCT_VERSION') {
-            $res->{DBMS_VERSION} = $p->get_value->get_string_value;
-        } elsif ($name eq 'GET_DATABASE_PRODUCT_NAME') {
-            $res->{DBMS_NAME} = $p->get_value->get_string_value;
-        } elsif ($name eq 'GET_S_Q_L_KEYWORDS') {
-            $res->{SQL_KEYWORDS} = $p->get_value->get_string_value;
-        }
-    }
-
-    return $res;
-}
-
 sub _load_database_properties {
     my $dbh = shift;
     my ($ret, $response) = _client($dbh, 'database_property');
     return unless $ret;
-    my $props = _map_database_properties($response->get_props_list);
+    my $props = $dbh->{avatica_adapter}->map_database_properties($response->get_props_list);
     $dbh->{$_} = $props->{$_} for qw/AVATICA_DRIVER_NAME AVATICA_DRIVER_VERSION/;
     $dbh->{avatica_info_type_cache}{$_} = $props->{$_} for qw/DBMS_NAME DBMS_VERSION SQL_KEYWORDS/;
 }
@@ -492,8 +461,6 @@ use warnings;
 
 use DBI;
 
-use DBD::Avatica::Types;
-
 use constant FETCH_SIZE => 2000;
 
 *_client = \&DBD::Avatica::_client;
@@ -522,7 +489,8 @@ sub execute {
     my $statement_id = $sth->{avatica_statement_id};
     my $signature = $sth->{avatica_signature};
 
-    my $mapped_params = DBD::Avatica::Types->row_to_jdbc(\@bind_values, $sth->{avatica_params});
+    my $dbh = $sth->{Database};
+    my $mapped_params = $dbh->{avatica_adapter}->row_to_jdbc(\@bind_values, $sth->{avatica_params});
 
     my ($ret, $response) = _client($sth, 'execute', $statement_id, $signature, $mapped_params, FETCH_SIZE);
     unless ($ret) {
@@ -556,11 +524,6 @@ sub execute {
     $signature = $result->get_signature;
     $sth->{avatica_signature} = $signature;
 
-    my $frame = $result->get_first_frame;
-    $sth->{avatica_data_done} = $frame->get_done;
-    $sth->{avatica_data} = $frame->get_rows_list;
-
-    my $num_columns = $signature->columns_size;
     my $num_updates = $result->get_update_count;
     $num_updates = -1 if $num_updates == '18446744073709551615'; # max_int
 
@@ -569,13 +532,20 @@ sub execute {
         $sth->STORE(Active => 0);
         $sth->STORE(NUM_OF_FIELDS => 0);
         $sth->{avatica_rows} = $num_updates;
-        return if $num_updates == 0 ? '0E0' : $num_updates;
+        $sth->{avatica_data_done} = 1;
+        $sth->{avatica_data} = [];
+        return $num_updates == 0 ? '0E0' : $num_updates;
     }
 
     # SELECT
+    my $frame = $result->get_first_frame;
+    $sth->{avatica_data_done} = $frame->get_done;
+    $sth->{avatica_data} = $frame->get_rows_list;
+    $sth->{avatica_rows} = 0;
+
+    my $num_columns = $signature->columns_size;
     $sth->STORE(Active => 1);
     $sth->STORE(NUM_OF_FIELDS => $num_columns);
-    $sth->{avatica_rows} = 0;
 
     return 1;
 }
@@ -603,10 +573,11 @@ sub fetch {
 
     if ($avatica_rows_list && @$avatica_rows_list) {
         $sth->{avatica_rows} += 1;
+        my $dbh = $sth->{Database};
         my $avatica_row = shift @$avatica_rows_list;
         my $values = $avatica_row->get_value_list;
         my $columns = $signature->get_columns_list;
-        my $row = DBD::Avatica::Types->row_from_jdbc($values, $columns);
+        my $row = $dbh->{avatica_adapter}->row_from_jdbc($values, $columns);
         return $sth->_set_fbav($row);
     }
 
@@ -648,8 +619,9 @@ sub FETCH {
             [map { $_->get_column_name } @{$sth->{avatica_signature}->get_columns_list}];
     }
     if ($attr eq 'TYPE') {
+        my $dbh = $sth->{Database};
         return $sth->{avatica_cache_type} ||=
-            [map { DBD::Avatica::Types->to_dbi($_->get_type) } @{$sth->{avatica_signature}->get_columns_list}];
+            [map { $dbh->{avatica_adapter}->to_dbi($_->get_type) } @{$sth->{avatica_signature}->get_columns_list}];
     }
     if ($attr eq 'PRECISION') {
         return $sth->{avatica_cache_precision} ||=
