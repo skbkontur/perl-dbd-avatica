@@ -104,6 +104,8 @@ sub connect {
     my $adapter = $adapter_class->new(dbh => $dbh);
     $dbh->{avatica_adapter} = $adapter;
 
+    $dbh->{avatica_pid} = $$;
+
     $dbh->STORE(Active => 1);
 
     $dbh->{avatica_client} = $client;
@@ -413,6 +415,11 @@ sub disconnect {
     return 1 unless $dbh->FETCH('Active');
     $dbh->STORE(Active => 0);
 
+    if ($dbh->{avatica_pid} != $$) {
+        $dbh->{avatica_client} = undef;
+        return 1;
+    }
+
     my ($ret, $response) = _client($dbh, 'close_connection');
     $dbh->{avatica_client} = undef;
 
@@ -645,7 +652,7 @@ sub FETCH {
 sub _avatica_close_statement {
     my $sth = shift;
     my $statement_id  = $sth->{avatica_statement_id};
-    _client($sth, 'close_statement', $statement_id) if $statement_id;
+    _client($sth, 'close_statement', $statement_id) if $statement_id && $sth->FETCH('Database')->{avatica_pid} == $$;
     $sth->{avatica_statement_id} = undef;
 }
 
