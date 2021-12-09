@@ -203,15 +203,39 @@ sub prepare {
     $outer;
 }
 
+sub begin_work {
+    my $dbh = shift;
+    $dbh->{avatica_autocommit_at_begin_work} = $dbh->{AutoCommit};
+    return 1 unless $dbh->{AutoCommit};
+    $dbh->{AutoCommit} = 0;
+    return _sync_connection_params($dbh);
+}
+
 sub commit {
     my $dbh = shift;
+    return 1 if $dbh->{AutoCommit};
     my ($ret, $response) = _client($dbh, 'commit');
+    return $ret unless $dbh->{avatica_autocommit_at_begin_work};
+    $dbh->{AutoCommit} = 1;
+    unless (_sync_connection_params($dbh)) {
+        warn $dbh->errstr;
+        # clear errors of setting autocomit = 1, because commit succeed
+        $dbh->set_err(undef, undef, '');
+    }
     return $ret;
 }
 
 sub rollback {
     my $dbh = shift;
+    return 1 if $dbh->{AutoCommit};
     my ($ret, $response) = _client($dbh, 'rollback');
+    return $ret unless $dbh->{avatica_autocommit_at_begin_work};
+    $dbh->{AutoCommit} = 1;
+    unless (_sync_connection_params($dbh)) {
+        warn $dbh->errstr;
+        # clear errors of setting autocomit = 1, because rollback succeed
+        $dbh->set_err(undef, undef, '');
+    }
     return $ret;
 }
 
@@ -399,6 +423,7 @@ sub _sync_connection_params {
     $dbh->{TransactionIsolation} = $props->get_transaction_isolation;
     $dbh->{Catalog} = $props->get_catalog if $props->get_catalog;
     $dbh->{Schema} = $props->get_schema if $props->get_schema;
+    return 1;
 }
 
 sub _load_database_properties {
