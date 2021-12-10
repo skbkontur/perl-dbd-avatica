@@ -72,7 +72,7 @@ sub connect {
 
     my %dsn = split /[;=]/, $dsn;
 
-    my $adapter_name = ucfirst $dsn{adapter_name} // '';
+    my $adapter_name = ucfirst($dsn{adapter_name} // '');
     return $drh->set_err(1, q{Parameter "adapter_name" is required in dsn}) unless $adapter_name;
     my $adapter_class_path = "DBD/Avatica/Adapter/${adapter_name}.pm";
     my $adapter_class = "DBD::Avatica::Adapter::${adapter_name}";
