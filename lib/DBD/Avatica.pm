@@ -197,6 +197,14 @@ sub prepare {
     $outer;
 }
 
+sub ping {
+  my $dbh = shift;
+  my $sth = $dbh->prepare_cached('SELECT 1') or return 0;
+  $sth->execute or return 0;
+  $sth->finish;
+  return 1;
+}
+
 sub begin_work {
     my $dbh = shift;
     $dbh->{avatica_autocommit_at_begin_work} = $dbh->{AutoCommit};
