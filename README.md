@@ -1,6 +1,6 @@
 # NAME
 
-DBD::Avatica
+DBD::Avatica - Driver for Apache Avatica compatible servers
 
 # VERSION
 
@@ -23,10 +23,6 @@ version 0.01.0
 
 DBD::Avatica is a Perl module that works with the DBI module to provide access to
 databases with Apache Avatica compatible protocol.
-
-# NAME
-
-DBD::Avatica - Driver for Apache Avatica compatible servers
 
 # MODULE DOCUMENTATION
 
@@ -888,11 +884,11 @@ value.
 
 # AUTHOR
 
-Alexey Stavrov <logioniz@ya.ru>
+Alexey Stavrov &lt;logioniz@ya.ru>
 
 # CONTRIBUTOR
 
-Denis Ibaev <dionys@gmail.com>
+Denis Ibaev &lt;dionys@gmail.com>
 
 # COPYRIGHT AND LICENSE
 
