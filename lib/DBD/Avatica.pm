@@ -39,7 +39,12 @@ sub _client {
 
     local $SIG{PIPE} = "IGNORE";
 
+    my $is_trace = $h->trace();
+    $h->trace_msg(join('; ', '--> ', $method, ($connection_id // ()), map { defined ? $_ : 'undef' } @_, "\n")) if $is_trace;
+
     my ($ret, $response) = $client->$method($connection_id // (), @_);
+
+    $h->trace_msg(join('; ', '<-- ', $method, $ret ? ref($response)->encode_json($response) : $response, "\n")) if $is_trace;
 
     unless ($ret) {
         if ($response->{protocol}) {
@@ -528,7 +533,7 @@ sub execute {
     my $dbh = $sth->{Database};
     my $mapped_params = $dbh->{avatica_adapter}->row_to_jdbc(\@bind_values, $sth->{avatica_params});
 
-    my ($ret, $response) = _client($sth, 'execute', $statement_id, $signature, $mapped_params, FETCH_SIZE);
+    my ($ret, $response) = _client($sth, 'execute', $statement_id, $signature, $mapped_params, DBD::Avatica::st->FETCH_SIZE);
     unless ($ret) {
         return if $num_params != 0 || index($response->{message}, 'NullPointerException') == -1;
 
@@ -545,7 +550,7 @@ sub execute {
 
         $statement_id = $sth->{avatica_statement_id} = $response->get_statement_id;
 
-        ($ret, $response) = _client($sth, 'prepare_and_execute', $statement_id, $sql, undef, FETCH_SIZE);
+        ($ret, $response) = _client($sth, 'prepare_and_execute', $statement_id, $sql, undef, DBD::Avatica::st->FETCH_SIZE);
         return unless $ret;
     }
 
@@ -596,7 +601,7 @@ sub fetch {
 
     if ((!$avatica_rows_list || !@$avatica_rows_list) && !$avatica_rows_done) {
         my $statement_id  = $sth->{avatica_statement_id};
-        my ($ret, $response) = _client($sth, 'fetch', $statement_id, undef, FETCH_SIZE);
+        my ($ret, $response) = _client($sth, 'fetch', $statement_id, undef, DBD::Avatica::st->FETCH_SIZE);
         return unless $ret;
 
         my $frame = $response->get_frame;
