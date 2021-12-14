@@ -368,8 +368,8 @@ of 0 for 'no rows were affected', in order to always return a true value if no e
 
 ### **last\_insert\_id**
 
-    $rv = $dbh->last_insert_id(undef, $schema, $table, undef);
-    $rv = $dbh->last_insert_id(undef, $schema, $table, undef, {sequence => $seqname});
+    $rv = $dbh->last_insert_id(undef, $schema, $table, $column);
+    $rv = $dbh->last_insert_id(undef, $schema, $table, $column, {sequence => $seqname});
 
 Attempts to return the id of the last value of sequence to be inserted into a table.
 You can either provide a sequence name (preferred) or provide a table
@@ -378,7 +378,9 @@ name with optional schema, and DBD::Avatica will attempt to find the sequence it
 If you do not know the name of the sequence, you can provide a table name and
 DBD::Avatica will attempt to return the correct value. To do this, there must be at
 least one column in the table which uses a sequence, sequence schema name must be similar
-schema table name and sequnce prefix name must contain table name.
+schema table name and sequnce prefix name must contain table name. If there are many sequences
+in the table then the sequence prefix must contain table name and column name separated by
+an underscore symbol.
 
 Example:
 
@@ -390,8 +392,6 @@ Example:
       my $newid = $dbh->last_insert_id(undef, undef, undef, undef, {sequence=>'test_seq'});
       print "Last insert id was $newid\n";
     }
-
-At the moment this method/feature is not implemented.
 
 ### **commit**
 
@@ -796,13 +796,11 @@ for data transfer applications.
 
 ### **last\_insert\_id**
 
-    $rv = $sth->last_insert_id(undef, $schema, $table, undef);
-    $rv = $sth->last_insert_id(undef, $schema, $table, undef, {sequence => $seqname});
+    $rv = $sth->last_insert_id(undef, $schema, $table, $column);
+    $rv = $sth->last_insert_id(undef, $schema, $table, $column, {sequence => $seqname});
 
 This is simply an alternative way to return the same information as
 `$dbh->last_insert_id`.
-
-At the moment not supported.
 
 ## Statement Handle Attributes
 
