@@ -1,5 +1,7 @@
 package DBD::Avatica;
 
+# ABSTRACT: Driver for Apache Avatica compatible servers
+
 use strict;
 use warnings;
 use DBI;
@@ -706,10 +708,6 @@ sub DESTROY {
 1;
 
 __END__
-
-=head1 NAME
-
-DBD::Avatica - Driver for Apache Avatica compatible servers
 
 =head1 SYNOPSIS
 
