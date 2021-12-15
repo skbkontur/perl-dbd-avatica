@@ -206,10 +206,35 @@ sub prepare {
 
 sub ping {
   my $dbh = shift;
-  my $sth = $dbh->prepare_cached('SELECT 1') or return 0;
-  $sth->execute or return 0;
+
+  my $sth = $dbh->{avatica_cached_stmt_ping};
+  if ($sth && !$sth->FETCH('Active')) {
+    $sth = $dbh->{avatica_cached_stmt_ping};
+  } else {
+    my ($ret, $response) = _client($dbh, 'create_statement');
+    return unless $ret;
+
+    my $statement_id = $response->get_statement_id;
+
+    (my $outer, $sth) = DBI::_new_sth($dbh, {'Statement' => 'SELECT 1'});
+    $sth->{avatica_client} = $dbh->FETCH('avatica_client');
+    $sth->{avatica_connection_id} = $dbh->FETCH('avatica_connection_id');
+    $sth->{avatica_statement_id} = $statement_id;
+
+    $dbh->{avatica_cached_stmt_ping} = $sth;
+  }
+
+  my ($ret, $response) = _client($dbh, 'prepare_and_execute', $sth->{avatica_statement_id}, 'SELECT 1', undef, DBD::Avatica::st->FETCH_SIZE);
+  return unless $ret;
+
   $sth->finish;
   return 1;
+
+  # after fix of CALCITE-4900 code below will be more correct
+  # my $sth = $dbh->prepare_cached('SELECT 1') or return 0;
+  # $sth->execute or return 0;
+  # $sth->finish;
+  # return 1;
 }
 
 sub begin_work {
