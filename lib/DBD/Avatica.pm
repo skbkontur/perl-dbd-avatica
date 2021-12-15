@@ -747,7 +747,7 @@ use the following syntax:
 
   $dbh = DBI->connect("dbi:Avatica:adapter_name=phoenix;url=http://127.0.0.1:8765", '', '', {AutoCommit => 0});
 
-This connects to the database accessed by url  C<http://127.0.0.1:8765> without any user authentication.
+This connects to the database accessed by url C<http://127.0.0.1:8765> without any user authentication.
 
 The following connect statement shows almost all possible parameters:
 
@@ -769,7 +769,12 @@ Currently username/password not supported. To set username/password for authenti
 Your UserAgent must implement C<POST> request with HTTP::Tiny semantics.
 So, after some timeouts, network errors UserAgent must return http status 599 and do not retries after failure.
 
-Attrubute MaxRetries specifies the number of attempts to send request (in case HTTP 500 response).
+Attrubute MaxRetries specifies the number of retries to send the request (in case HTTP 500 response). Default value is 0.
+
+Specific for Apache Phoenix:
+It is not recommended to use the MaxRetries parameter due to the L<CALCITE-4900|https://issues.apache.org/jira/browse/CALCITE-4900>
+error, due to which the phoenix server may return an error which will lead to repeated requests, between which sleep is inserted.
+It is guaranteed that the total time spent in sleep among all retries is no more than 1.6 sec.
 
 =head3 B<connect_cached>
 
