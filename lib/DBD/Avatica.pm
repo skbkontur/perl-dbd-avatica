@@ -477,6 +477,9 @@ sub _load_database_properties {
 sub disconnect {
   my $dbh = shift;
   return 1 unless $dbh->FETCH('Active');
+
+  delete $dbh->{avatica_cached_stmt_ping};
+
   $dbh->STORE(Active => 0);
 
   if ($dbh->{avatica_pid} != $$) {
@@ -580,6 +583,7 @@ sub execute {
     ($ret, $response) = _client($sth, 'create_statement');
     return unless $ret;
 
+    _avatica_close_statement($sth);
     $statement_id = $sth->{avatica_statement_id} = $response->get_statement_id;
 
     ($ret, $response) = _client($sth, 'prepare_and_execute', $statement_id, $sql, undef, DBD::Avatica::st->FETCH_SIZE);
