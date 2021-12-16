@@ -42,11 +42,11 @@ sub _client {
   local $SIG{PIPE} = "IGNORE";
 
   my $is_trace = $h->trace();
-  $h->trace_msg(join('; ', '--> ', $method, ($connection_id // ()), map { defined ? $_ : 'undef' } @_, "\n")) if $is_trace;
+  $h->trace_msg(join('; ', '--> ', $method, ($connection_id // ()), (map { $_ // 'undef' } @_), "\n")) if $is_trace;
 
   my ($ret, $response) = $client->$method($connection_id // (), @_);
 
-  $h->trace_msg(join('; ', '<-- ', $method, $ret ? ref($response)->encode_json($response) : $response, "\n")) if $is_trace;
+  $h->trace_msg(join('; ', '<-- ', $method, ($ret ? ref($response)->encode_json($response) : $response), "\n")) if $is_trace;
 
   unless ($ret) {
     if ($response->{protocol}) {
