@@ -538,6 +538,7 @@ use warnings;
 use DBI;
 
 use constant FETCH_SIZE => 2000;
+use constant BATCH_SIZE => 2000;
 
 *_client = \&DBD::Avatica::_client;
 
@@ -625,6 +626,68 @@ sub execute {
   $sth->STORE(NUM_OF_FIELDS => $num_columns);
 
   return 1;
+}
+
+sub _execute_batch {
+  my ($sth, $rows) = @_;
+
+  my $statement_id = $sth->{avatica_statement_id};
+  my $signature = $sth->{avatica_signature};
+
+  my $dbh = $sth->{Database};
+  my $mapped_params = [
+    map {
+      $dbh->{avatica_adapter}->row_to_jdbc($_, $sth->{avatica_params});
+    }
+    @$rows
+  ];
+
+  my ($ret, $response) = _client($sth, 'execute_batch', $statement_id, $mapped_params);
+  return unless $ret;
+
+  my $updates = $response->get_update_counts_list;
+  # 18446744073709551615 is max int64
+  return [map { $_ == '18446744073709551615' ? -1 : $_ } @$updates]
+}
+
+sub execute_for_fetch {
+    my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
+    # start with empty status array
+    ($tuple_status) ? @$tuple_status = () : $tuple_status = [];
+
+    my ($tuples, $rc_total) = (0, 0);
+    my $err_count;
+    while (1) {
+      my ($rows, $rows_count) = ([], 0);
+
+      while (my $tuple = &$fetch_tuple_sub()) {
+        push @$rows, $tuple;
+        ++$rows_count;
+        last if $rows_count >= DBD::Avatica::st->BATCH_SIZE;
+      }
+      last unless @$rows;
+
+      $tuples += @$rows;
+
+      if ( my $many_rc = _execute_batch($sth, $rows) ) {
+        push @$tuple_status, @$many_rc;
+        for my $rc (@$many_rc) {
+          $rc_total = ($rc >= 0 && $rc_total >= 0) ? $rc_total + $rc : -1;
+        }
+      } else {
+        $err_count += @$rows;
+        my $status = [ $sth->err, $sth->errstr, $sth->state ];
+        push @$tuple_status, $status for @$rows;
+      }
+
+      last if @$rows < DBD::Avatica::st->BATCH_SIZE;
+    }
+
+    return $sth->set_err($DBI::stderr, "executing $tuples generated $err_count errors") if $err_count;
+    $tuples ||= "0E0";
+
+    return $tuples unless wantarray;
+    return ($tuples, $rc_total);
 }
 
 sub fetch {
