@@ -2,7 +2,7 @@ FROM openjdk:8
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
-        less locales strace lsof vim nano iproute2 tmux make openssl libssl-dev curl && \
+        less locales strace lsof vim nano iproute2 tmux make openssl libssl-dev curl python-is-python2 && \
     apt-get clean
 
 # set default java8
