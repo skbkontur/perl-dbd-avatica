@@ -1,4 +1,4 @@
-# INSTALL DEPENDENCIES manully (based on DEBIAN/UBUNTU packages names)
+# INSTALL DEPENDENCIES manually (based on DEBIAN/UBUNTU packages names)
 
 ## OS-LEVEL DEPENDENCES
 
