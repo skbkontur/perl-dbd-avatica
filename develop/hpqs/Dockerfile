@@ -1,4 +1,4 @@
-FROM openjdk:8
+FROM openjdk:8-bullseye
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
