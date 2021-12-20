@@ -21,11 +21,13 @@ WORKDIR /hpqs
 # download hbase + phoenix + phoenix-queryserver
 RUN curl -o "hbase-1.4.14-bin.tar.gz" "http://archive.apache.org/dist/hbase/1.4.14/hbase-1.4.14-bin.tar.gz" && \
     curl -o "apache-phoenix-4.15.0-HBase-1.4-bin.tar.gz" "https://dlcdn.apache.org/phoenix/apache-phoenix-4.15.0-HBase-1.4/bin/apache-phoenix-4.15.0-HBase-1.4-bin.tar.gz" && \
-    curl -o "phoenix-queryserver-6.0.0-bin.tar.gz" "https://dlcdn.apache.org/phoenix/phoenix-queryserver-6.0.0/phoenix-queryserver-6.0.0-bin.tar.gz"
-
-RUN tar -xzf hbase-1.4.14-bin.tar.gz && \
+    curl -o "phoenix-queryserver-6.0.0-bin.tar.gz" "https://dlcdn.apache.org/phoenix/phoenix-queryserver-6.0.0/phoenix-queryserver-6.0.0-bin.tar.gz" && \
+    tar -xzf hbase-1.4.14-bin.tar.gz && \
     tar -xzf apache-phoenix-4.15.0-HBase-1.4-bin.tar.gz && \
-    tar -xzf phoenix-queryserver-6.0.0-bin.tar.gz
+    tar -xzf phoenix-queryserver-6.0.0-bin.tar.gz && \
+    rm hbase-1.4.14-bin.tar.gz && \
+    rm apache-phoenix-4.15.0-HBase-1.4-bin.tar.gz && \
+    rm phoenix-queryserver-6.0.0-bin.tar.gz
 
 RUN cp /hpqs/apache-phoenix-4.15.0-HBase-1.4-bin/phoenix-4.15.0-HBase-1.4-server.jar /hpqs/hbase-1.4.14/lib/
 
