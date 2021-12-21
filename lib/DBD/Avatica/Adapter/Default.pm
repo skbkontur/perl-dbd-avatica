@@ -16,39 +16,39 @@ use Avatica::Client;
 #
 
 use constant JAVA_TO_REP => {
-  -6  => Avatica::Client::Protocol::Rep::BYTE(),              # TINYINT
-  5   => Avatica::Client::Protocol::Rep::SHORT(),             # SMALLINT
-  4   => Avatica::Client::Protocol::Rep::INTEGER(),           # INTEGER
-  -5  => Avatica::Client::Protocol::Rep::LONG(),              # BIGINT
-  6   => Avatica::Client::Protocol::Rep::DOUBLE(),            # FLOAT
-  8   => Avatica::Client::Protocol::Rep::DOUBLE(),            # DOUBLE
-  2   => Avatica::Client::Protocol::Rep::BIG_DECIMAL(),       # NUMERIC
-  1   => Avatica::Client::Protocol::Rep::STRING(),            # CHAR
-  91  => Avatica::Client::Protocol::Rep::JAVA_SQL_DATE(),     # DATE
-  92  => Avatica::Client::Protocol::Rep::JAVA_SQL_TIME(),     # TIME
-  93  => Avatica::Client::Protocol::Rep::JAVA_SQL_TIMESTAMP(),    # TIMESTAMP
-  -2  => Avatica::Client::Protocol::Rep::BYTE_STRING(),       # BINARY
-  -3  => Avatica::Client::Protocol::Rep::BYTE_STRING(),       # VARBINARY
-  16  => Avatica::Client::Protocol::Rep::BOOLEAN(),           # BOOLEAN
+  -6    => Avatica::Client::Protocol::Rep::BYTE(),                # TINYINT
+  5     => Avatica::Client::Protocol::Rep::SHORT(),               # SMALLINT
+  4     => Avatica::Client::Protocol::Rep::INTEGER(),             # INTEGER
+  -5    => Avatica::Client::Protocol::Rep::LONG(),                # BIGINT
+  6     => Avatica::Client::Protocol::Rep::DOUBLE(),              # FLOAT
+  8     => Avatica::Client::Protocol::Rep::DOUBLE(),              # DOUBLE
+  2     => Avatica::Client::Protocol::Rep::BIG_DECIMAL(),         # NUMERIC
+  1     => Avatica::Client::Protocol::Rep::STRING(),              # CHAR
+  91    => Avatica::Client::Protocol::Rep::JAVA_SQL_DATE(),       # DATE
+  92    => Avatica::Client::Protocol::Rep::JAVA_SQL_TIME(),       # TIME
+  93    => Avatica::Client::Protocol::Rep::JAVA_SQL_TIMESTAMP(),  # TIMESTAMP
+  -2    => Avatica::Client::Protocol::Rep::BYTE_STRING(),         # BINARY
+  -3    => Avatica::Client::Protocol::Rep::BYTE_STRING(),         # VARBINARY
+  16    => Avatica::Client::Protocol::Rep::BOOLEAN(),             # BOOLEAN
 
-  -7  => Avatica::Client::Protocol::Rep::BOOLEAN(),           # BIT
-  7   => Avatica::Client::Protocol::Rep::DOUBLE(),            # REAL
-  3   => Avatica::Client::Protocol::Rep::BIG_DECIMAL(),       # DECIMAL
-  12  => Avatica::Client::Protocol::Rep::STRING(),            # VARCHAR
-  -1  => Avatica::Client::Protocol::Rep::STRING(),            # LONGVARCHAR
-  -4  => Avatica::Client::Protocol::Rep::BYTE_STRING(),       # LONGVARBINARY
-  2004  => Avatica::Client::Protocol::Rep::BYTE_STRING(),     # BLOB
-  2005  => Avatica::Client::Protocol::Rep::STRING(),          # CLOB
-  -15 => Avatica::Client::Protocol::Rep::STRING(),            # NCHAR
-  -9  => Avatica::Client::Protocol::Rep::STRING(),            # NVARCHAR
-  -16 => Avatica::Client::Protocol::Rep::STRING(),            # LONGNVARCHAR
-  2011  => Avatica::Client::Protocol::Rep::STRING(),          # NCLOB
-  2009  => Avatica::Client::Protocol::Rep::STRING(),          # SQLXML
-  2013 => Avatica::Client::Protocol::Rep::JAVA_SQL_TIME(),    # TIME_WITH_TIMEZONE
-  2014 => Avatica::Client::Protocol::Rep::JAVA_SQL_TIMESTAMP(),    # TIMESTAMP_WITH_TIMEZONE
+  -7    => Avatica::Client::Protocol::Rep::BOOLEAN(),             # BIT
+  7     => Avatica::Client::Protocol::Rep::DOUBLE(),              # REAL
+  3     => Avatica::Client::Protocol::Rep::BIG_DECIMAL(),         # DECIMAL
+  12    => Avatica::Client::Protocol::Rep::STRING(),              # VARCHAR
+  -1    => Avatica::Client::Protocol::Rep::STRING(),              # LONGVARCHAR
+  -4    => Avatica::Client::Protocol::Rep::BYTE_STRING(),         # LONGVARBINARY
+  2004  => Avatica::Client::Protocol::Rep::BYTE_STRING(),         # BLOB
+  2005  => Avatica::Client::Protocol::Rep::STRING(),              # CLOB
+  -15   => Avatica::Client::Protocol::Rep::STRING(),              # NCHAR
+  -9    => Avatica::Client::Protocol::Rep::STRING(),              # NVARCHAR
+  -16   => Avatica::Client::Protocol::Rep::STRING(),              # LONGNVARCHAR
+  2011  => Avatica::Client::Protocol::Rep::STRING(),              # NCLOB
+  2009  => Avatica::Client::Protocol::Rep::STRING(),              # SQLXML
+  2013  => Avatica::Client::Protocol::Rep::JAVA_SQL_TIME(),       # TIME_WITH_TIMEZONE
+  2014  => Avatica::Client::Protocol::Rep::JAVA_SQL_TIMESTAMP(),  # TIMESTAMP_WITH_TIMEZONE
 
   # Returned by Avatica for Arrays in EMPTY resultsets
-  2000  => Avatica::Client::Protocol::Rep::BYTE_STRING(),     # JAVA_OBJECT
+  2000  => Avatica::Client::Protocol::Rep::BYTE_STRING(),         # JAVA_OBJECT
 };
 
 use constant REP_TO_TYPE_VALUE => {
@@ -78,36 +78,36 @@ use constant REP_TO_TYPE_VALUE => {
 };
 
 use constant JAVA_TO_DBI => {
-  -6  => SQL_TINYINT,                         # TINYINT
-  5   => SQL_SMALLINT,                        # SMALLINT
-  4   => SQL_INTEGER,                         # INTEGER
-  -5  => SQL_BIGINT,                          # BIGINT
-  6   => SQL_FLOAT,                           # FLOAT
-  8   => SQL_DOUBLE,                          # DOUBLE
-  2   => SQL_NUMERIC,                         # NUMERIC
-  1   => SQL_CHAR,                            # CHAR
-  91  => SQL_TYPE_DATE,                       # DATE
-  92  => SQL_TYPE_TIME,                       # TIME
-  93  => SQL_TYPE_TIMESTAMP,                  # TIMESTAMP
-  -2  => SQL_BINARY,                          # BINARY
-  -3  => SQL_VARBINARY,                       # VARBINARY
-  16  => SQL_BOOLEAN,                         # BOOLEAN
+  -6    => SQL_TINYINT,                       # TINYINT
+  5     => SQL_SMALLINT,                      # SMALLINT
+  4     => SQL_INTEGER,                       # INTEGER
+  -5    => SQL_BIGINT,                        # BIGINT
+  6     => SQL_FLOAT,                         # FLOAT
+  8     => SQL_DOUBLE,                        # DOUBLE
+  2     => SQL_NUMERIC,                       # NUMERIC
+  1     => SQL_CHAR,                          # CHAR
+  91    => SQL_TYPE_DATE,                     # DATE
+  92    => SQL_TYPE_TIME,                     # TIME
+  93    => SQL_TYPE_TIMESTAMP,                # TIMESTAMP
+  -2    => SQL_BINARY,                        # BINARY
+  -3    => SQL_VARBINARY,                     # VARBINARY
+  16    => SQL_BOOLEAN,                       # BOOLEAN
 
-  -7  => SQL_BIT,                             # BIT
-  7   => SQL_REAL,                            # REAL
-  3   => SQL_DECIMAL,                         # DECIMAL
-  12  => SQL_VARCHAR,                         # VARCHAR
-  -1  => SQL_LONGVARCHAR,                     # LONGVARCHAR
-  -4  => SQL_LONGVARBINARY,                   # LONGVARBINARY
+  -7    => SQL_BIT,                           # BIT
+  7     => SQL_REAL,                          # REAL
+  3     => SQL_DECIMAL,                       # DECIMAL
+  12    => SQL_VARCHAR,                       # VARCHAR
+  -1    => SQL_LONGVARCHAR,                   # LONGVARCHAR
+  -4    => SQL_LONGVARBINARY,                 # LONGVARBINARY
   2004  => SQL_BLOB,                          # BLOB
   2005  => SQL_CLOB,                          # CLOB
-  -15 => SQL_CHAR,                            # NCHAR
-  -9  => SQL_VARCHAR,                         # NVARCHAR
-  -16 => SQL_LONGVARCHAR,                     # LONGNVARCHAR
+  -15   => SQL_CHAR,                          # NCHAR
+  -9    => SQL_VARCHAR,                       # NVARCHAR
+  -16   => SQL_LONGVARCHAR,                   # LONGNVARCHAR
   2011  => SQL_CLOB,                          # NCLOB
   2009  => SQL_LONGVARCHAR,                   # SQLXML
-  2013 => SQL_TYPE_TIME_WITH_TIMEZONE,        # TIME_WITH_TIMEZONE
-  2014 => SQL_TYPE_TIMESTAMP_WITH_TIMEZONE,   # TIMESTAMP_WITH_TIMEZONE
+  2013  => SQL_TYPE_TIME_WITH_TIMEZONE,       # TIME_WITH_TIMEZONE
+  2014  => SQL_TYPE_TIMESTAMP_WITH_TIMEZONE,  # TIMESTAMP_WITH_TIMEZONE
 
   # Returned by Avatica for Arrays in EMPTY resultsets
   2000  => SQL_ARRAY,                         # JAVA_OBJECT
