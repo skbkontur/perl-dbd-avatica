@@ -843,23 +843,25 @@ This connects to the database accessed by url C<http://127.0.0.1:8765> without a
 
 The following connect statement shows almost all possible parameters:
 
-  $dbh = DBI->connect("dbi:Avatica:adapter_name=phoenix;url=$url;",
-                      $username,
-                      $password,
-                      {
-                        AutoCommit => 0,
-                        RaiseError => 1,
-                        PrintError => 0,
-                        TransactionIsolation => 2
-                        UserAgent => HTTP::Tiny->new(),
-                        MaxRetries => 2
-                      }
-                     );
+    $dbh = DBI->connect(
+        "dbi:Avatica:adapter_name=phoenix;url=$url;",
+        $username,
+        $password,
+        {
+            UserAgent  => HTTP::Tiny->new(),
+            AutoCommit => 0,
+            RaiseError => 1,
+            PrintError => 0,
+            MaxRetries => 2,
+            TransactionIsolation => 2,
+        },
+    );
 
 Currently username/password not supported. To set username/password for authentication need to redefine UserAgent attribute.
 
 Your UserAgent must implement C<POST> request with HTTP::Tiny semantics.
 So, after some timeouts, network errors UserAgent must return http status 599 and do not retries after failure.
+For example, Furl has better performance than HTTP::Tiny.
 
 Attrubute MaxRetries specifies the number of retries to send the request (in case HTTP 500 response). Default value is 0.
 
