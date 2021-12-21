@@ -868,7 +868,7 @@ Attrubute MaxRetries specifies the number of retries to send the request (in cas
 Specific for Apache Phoenix:
 It is not recommended to use the MaxRetries parameter due to the L<CALCITE-4900|https://issues.apache.org/jira/browse/CALCITE-4900>
 error, due to which the phoenix server may return an error which will lead to repeated requests, between which sleep is inserted.
-It is guaranteed that the total time spent in sleep among all retries is no more than 1.6 sec.
+It is guaranteed that the total time spent in sleep among all retries is no more than 1.6 seconds.
 
 =head3 B<connect_cached>
 
