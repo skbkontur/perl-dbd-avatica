@@ -50,8 +50,6 @@ The following connect statement shows almost all possible parameters:
 
     $dbh = DBI->connect(
         "dbi:Avatica:adapter_name=phoenix;url=$url;",
-        $username,
-        $password,
         {
             UserAgent  => HTTP::Tiny->new(),
             AutoCommit => 0,
@@ -77,7 +75,10 @@ It is guaranteed that the total time spent in sleep among all retries is no more
 
 ### **connect\_cached**
 
-    $dbh = DBI->connect_cached("dbi:Avatica:adapter_name=phoenix;url=$url", $username, $password, \%options);
+    $dbh = DBI->connect_cached(
+        "dbi:Avatica:adapter_name=phoenix;url=$url",
+        \%options,
+    );
 
 Implemented by DBI, no driver-specific impact.
 
