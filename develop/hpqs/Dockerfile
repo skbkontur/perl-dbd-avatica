@@ -31,5 +31,3 @@ RUN curl -o "hbase-1.4.14-bin.tar.gz" "http://archive.apache.org/dist/hbase/1.4.
     rm phoenix-queryserver-6.0.0-bin.tar.gz
 
 RUN cp /hpqs/apache-phoenix-4.15.0-HBase-1.4-bin/phoenix-4.15.0-HBase-1.4-server.jar /hpqs/hbase-1.4.14/lib/
-
-ADD develop/hpqs/start.sh /hpqs/start.sh
