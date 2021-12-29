@@ -4,7 +4,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: develop/dbd/Dockerfile
+      dockerfile: develop/Dockerfile
     image: dbd-avatica:latest
     volumes:
       - ".:/dbd-avatica"
