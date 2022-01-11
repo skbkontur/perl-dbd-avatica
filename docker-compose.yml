@@ -1,16 +1,16 @@
 version: "3.9"
 
 services:
-  dbd:
+  app:
     build:
       context: .
-      dockerfile: develop/dbd/Dockerfile
+      dockerfile: app/Dockerfile
     image: dbd-avatica:latest
     volumes:
-      - ".:/dbd"
+      - ".:/dbd-avatica"
     depends_on:
       - hpqs
-    working_dir: /dbd
+    working_dir: /dbd-avatica
     environment:
       TEST_ONLINE: 'http://hpqs:8765'
     cap_add:
@@ -22,10 +22,10 @@ services:
   hpqs:
     build:
         context: .
-        dockerfile: develop/hpqs/Dockerfile
+        dockerfile: hpqs/Dockerfile
     image: avatica-hbase-1.4
     volumes:
-      - "./develop/hpqs/hbase-site.xml:/hpqs/hbase-1.4.14/conf/hbase-site.xml"
+      - "./hpqs/hbase-site.xml:/hpqs/hbase-1.4.14/conf/hbase-site.xml"
     working_dir: /hpqs
     environment:
       JAVA_HOME: '/usr/local/openjdk-8'
@@ -36,4 +36,4 @@ services:
       - ALL
     privileged: true
     tty: true
-    command: ['/bin/bash', '/hpqs/start.sh']
+    command: ["/bin/bash", "-xc", "./hbase-1.4.14/bin/start-hbase.sh && ./phoenix-queryserver-6.0.0/bin/queryserver.py"]

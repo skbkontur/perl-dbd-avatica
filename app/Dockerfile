@@ -1,9 +1,9 @@
-FROM perl:5.34-buster
+FROM perl:5.34-bullseye
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
         less locales strace lsof vim nano iproute2 tmux \
-        libprotobuf-dev libprotoc-dev g++ libstdc++6 libstdc++-8-dev make cmake openssl libssl-dev spell && \
+        libprotobuf-dev libprotoc-dev g++ make cmake openssl libssl-dev libstdc++6 libstdc++-10-dev spell && \
     apt-get clean
 
 # locale
@@ -18,7 +18,7 @@ RUN export PATH=$PATH:$(dirname $(${CCPREFIX}gcc -print-prog-name=cc1))
 RUN ln -s /usr/lib/$(gcc -dumpmachine)/libstdc++.so.6 /usr/lib/$(gcc -dumpmachine)/libstdc++.so
 
 # perl modules
-ADD . /dbd
-WORKDIR /dbd
-RUN cpanm -n --installdeps --with-develop /dbd
+ADD . /workdir
+WORKDIR /workdir
+RUN cpanm -n --installdeps --with-develop .
 RUN dzil authordeps --missing | cpanm

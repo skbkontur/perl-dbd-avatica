@@ -2,7 +2,8 @@ FROM openjdk:8-bullseye
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
-        less locales strace lsof vim nano iproute2 tmux make openssl libssl-dev curl python-is-python2 && \
+        python-is-python2 \
+        less locales strace lsof vim nano iproute2 tmux make openssl libssl-dev curl && \
     apt-get clean
 
 # set default java8
@@ -30,5 +31,3 @@ RUN curl -o "hbase-1.4.14-bin.tar.gz" "http://archive.apache.org/dist/hbase/1.4.
     rm phoenix-queryserver-6.0.0-bin.tar.gz
 
 RUN cp /hpqs/apache-phoenix-4.15.0-HBase-1.4-bin/phoenix-4.15.0-HBase-1.4-server.jar /hpqs/hbase-1.4.14/lib/
-
-ADD develop/hpqs/start.sh /hpqs/start.sh
