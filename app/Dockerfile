@@ -18,7 +18,7 @@ RUN export PATH=$PATH:$(dirname $(${CCPREFIX}gcc -print-prog-name=cc1))
 RUN ln -s /usr/lib/$(gcc -dumpmachine)/libstdc++.so.6 /usr/lib/$(gcc -dumpmachine)/libstdc++.so
 
 # perl modules
-ADD ./cpanfile ./dist.ini /root/
-WORKDIR /root
+ADD . /workdir
+WORKDIR /workdir
 RUN cpanm -n --installdeps --with-develop .
 RUN dzil authordeps --missing | cpanm

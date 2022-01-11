@@ -4,7 +4,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: develop/Dockerfile
+      dockerfile: app/Dockerfile
     image: dbd-avatica:latest
     volumes:
       - ".:/dbd-avatica"
@@ -22,10 +22,10 @@ services:
   hpqs:
     build:
         context: .
-        dockerfile: develop/hpqs/Dockerfile
+        dockerfile: hpqs/Dockerfile
     image: avatica-hbase-1.4
     volumes:
-      - "./develop/hpqs/hbase-site.xml:/hpqs/hbase-1.4.14/conf/hbase-site.xml"
+      - "./hpqs/hbase-site.xml:/hpqs/hbase-1.4.14/conf/hbase-site.xml"
     working_dir: /hpqs
     environment:
       JAVA_HOME: '/usr/local/openjdk-8'

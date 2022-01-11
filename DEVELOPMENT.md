@@ -27,7 +27,7 @@ Install package for spell check:
 
     docker-compose up -d                        # build and run
 
-    docker-compose exec app bash                # to get inside the DBD::Avatica container
+    docker-compose exec app bash                # to get inside the container with perl
     docker-compose exec hpqs bash               # to get inside the hbase+phoenix+queryserver container
     docker-compose exec hpqs /hpqs/hbase-1.4.14/bin/hbase shell                        # to get hbase shell
     docker-compose exec hpqs /hpqs/apache-phoenix-4.15.0-HBase-1.4-bin/bin/sqlline.py  # to get phoenix console
