@@ -7,7 +7,7 @@ use warnings;
 use DBI;
 use vars qw($VERSION $err $errstr $sqlstate $drh);
 
-$VERSION = '0.2.1';
+$VERSION = '0.2.2';
 
 $drh = undef;
 
