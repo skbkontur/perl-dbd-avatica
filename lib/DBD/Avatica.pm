@@ -756,7 +756,7 @@ sub FETCH {
   }
   if ($attr eq 'NAME') {
     return $sth->{avatica_cache_name} ||=
-        [map { $_->get_column_name } @{$sth->{avatica_signature}->get_columns_list}];
+        [map { $_->get_label // $_->get_column_name } @{$sth->{avatica_signature}->get_columns_list}];
   }
   if ($attr eq 'TYPE') {
     my $dbh = $sth->{Database};
